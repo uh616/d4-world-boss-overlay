@@ -4,6 +4,11 @@ A lightweight always-on-top overlay for Diablo 4 that shows a live countdown to 
 
 Data is pulled from [helltides.com](https://helltides.com).
 
+[![GitHub stars](https://img.shields.io/github/stars/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=gold)](https://github.com/uh616/d4-world-boss-overlay/stargazers)
+[![GitHub downloads](https://img.shields.io/github/downloads/uh616/d4-world-boss-overlay/total?style=flat-square&logo=github&color=brightgreen&label=downloads)](https://github.com/uh616/d4-world-boss-overlay/releases)
+[![GitHub release](https://img.shields.io/github/v/release/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=blue)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
+[![Visitors](https://visitor-badge.laobi.icu/badge?page_id=uh616.d4-world-boss-overlay&style=flat-square&color=red)](https://github.com/uh616/d4-world-boss-overlay)
+
 ---
 
 ## ⬇️ Download
