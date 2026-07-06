@@ -1,0 +1,68 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # Triggers on any tag like v1.2.0, v1.3.0, etc.
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller pillow requests psutil keyboard pygame
+
+      - name: Update build version from tag
+        shell: python
+        run: |
+          import re, sys
+          tag = "${{ github.ref_name }}"
+          with open("build.py", "r", encoding="utf-8") as f:
+              content = f.read()
+          content = re.sub(r'D4-Overlay-v[\d\.]+\.zip', f'D4-Overlay-{tag}.zip', content)
+          with open("build.py", "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Version updated to {tag}")
+
+      - name: Build exe and zip
+        run: python build.py
+
+      - name: Find release zip
+        id: find_zip
+        shell: python
+        run: |
+          import glob, os
+          zips = glob.glob("D4-Overlay-v*.zip")
+          if zips:
+              print(f"ZIP={zips[0]}")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"zip_name={zips[0]}\n")
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "D4 Overlay ${{ github.ref_name }}"
+          body: |
+            ## What's new in ${{ github.ref_name }}
+
+            Download `D4-Overlay-${{ github.ref_name }}.zip`, extract and run `D4-Overlay.exe`.
+
+            ### Features
+            - World Boss & Helltide & Legion timers
+            - Sound alert before boss spawn
+            - Settings (themes, alert time, auto-hide)
+            - Click-through mode: `Ctrl + L`
+            - Custom sound: place `alert.wav` next to the exe
+          files: ${{ steps.find_zip.outputs.zip_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
