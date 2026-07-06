@@ -27,29 +27,38 @@ Data is pulled from [helltides.com](https://helltides.com).
 
 ---
 
-## Usage
+## 📖 Legend & UI
 
-| Action | How |
-|---|---|
-| Move the overlay | Click and drag |
-| Close the overlay | Click the **✕** button on the right |
-
----
-
-## What it shows
-
+When running, the overlay looks like this:
 ```
-Ashava & Avarice  01:23:45  ║  HT: 38:21  🖼  ✕
+Ashava & Avarice  01:23:45  ║  HT: 38:21  ║  LG: 12:00  ⚙  ✕
 ```
 
 | Element | Description |
 |---|---|
 | **Boss name + timer** | Name of the next World Boss and time until it spawns |
 | **⚔ World Boss Active!** | Boss has spawned — go go go! |
-| **HT: XX:XX** (red) | Helltide is active — time remaining |
-| **HT in XX:XX** (grey) | Time until the next Helltide starts |
+| **HT: XX:XX** | Helltide is active — time remaining |
+| **HT in XX:XX** | Time until the next Helltide starts |
+| **LG: XX:XX** | Time until the next Legion event |
+| **⚙** | Click to open Settings (Themes, Alert Time, Auto-hide) |
+| **✕** | Click to exit the overlay |
 
-A **sound alert** plays automatically **5 minutes before** the World Boss spawns.
+A **sound alert** plays automatically **before** the World Boss spawns (customizable via Settings).
+
+## 🌟 Features
+
+- **Live Countdown**: See exactly when the next World Boss spawns and its name.
+- **Helltide Tracker**: Know if Helltide is currently active or when the next one begins.
+- **Legion Events**: Tracks the next Legion event.
+- **Always on Top**: Transparent, borderless window that stays above Diablo 4.
+- **Settings Menu**: Click the ⚙ icon to customize the overlay:
+  - Select custom themes (Crimson, Gold, Neon Blue, Poison, Amethyst, Darkness).
+  - Set custom alert times (1, 5, 10, or 15 minutes before the boss).
+  - Auto-hide when Diablo 4 is closed.
+- **Click-through Mode**: Press `Ctrl + L` to lock the overlay and make clicks pass through it.
+- **Audio Alerts**: Plays a sound before the World Boss spawns.
+- **Custom Sounds**: Place your own `alert.wav` next to the `.exe` to use a custom sound!
 
 ---
 

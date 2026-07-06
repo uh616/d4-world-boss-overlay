@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 import tkinter.messagebox as msgbox
 import urllib.request
 import urllib.error
@@ -9,15 +10,15 @@ import winsound
 import os
 import sys
 import subprocess
-import tempfile
+import ctypes
+import psutil
+import keyboard
 from PIL import Image, ImageTk
-
 
 def _bundled(filename: str) -> str:
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, filename)
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
 
 def _beside_exe(filename: str) -> str:
     if getattr(sys, 'frozen', False):
@@ -26,34 +27,41 @@ def _beside_exe(filename: str) -> str:
         base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, filename)
 
-
 # ─────────────────────────────────────────
-# Configuration
+# Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.1.0"
+VERSION     = "1.2.0"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
 GITHUB_API_URL   = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 REFRESH_INTERVAL = 300
-ALERT_MINUTES    = 5
 CUSTOM_SOUND     = _beside_exe("alert.wav")
 LOGO_FILE        = _bundled("logo.png")
 LOGO_SIZE        = 26
+CONFIG_FILE      = _beside_exe("config.json")
 
-# Layout constants
 H       = 36
 HPAD    = 10
 SEP_W   = 14
-CLOSE_W = 20
+BTN_W   = 20
 
 HELLTIDE_DURATION = 55 * 60
 
+# Windows API Constants for Click-through
+GWL_EXSTYLE = -20
+WS_EX_TRANSPARENT = 0x00000020
+WS_EX_LAYERED = 0x00080000
+
+THEMES = {
+    "Default Crimson": {"wb": "#ffcc00", "active": "#ef4444", "idle": "#a1a1aa", "border": "#8b0000"},
+    "Neon Blue":       {"wb": "#38bdf8", "active": "#818cf8", "idle": "#94a3b8", "border": "#1e3a8a"},
+    "Gold":            {"wb": "#fde047", "active": "#f59e0b", "idle": "#d6d3d1", "border": "#b45309"}
+}
 
 def _version_tuple(v: str):
     return tuple(int(x) for x in v.strip("v").split("."))
-
 
 class OverlayApp:
     def __init__(self, root):
@@ -61,32 +69,40 @@ class OverlayApp:
         self.root.title(APP_NAME)
         self.root.overrideredirect(True)
         self.root.wm_attributes("-topmost", True)
+        
+        self.hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
 
-        # ── Colors ──────────────────────────────
-        self.bg          = "#0a0a0a"
-        self.border      = "#8b0000"
-        self.col_gold    = "#ffcc00"
-        self.col_red     = "#ef4444"
-        self.col_gray    = "#a1a1aa"
-        self.col_dim     = "#3f3f46"
-        self.col_update  = "#22c55e"   # green for update button
-        self.transparent = "#fe00fe"
+        # ── Load Config ──────────────────────────
+        self.config = {
+            "alert_minutes": 5,
+            "sound_enabled": True,
+            "auto_hide": False,
+            "theme": "Default Crimson"
+        }
+        self._load_config()
 
         # ── State ────────────────────────────────
         self.next_boss      = None
         self.next_helltide  = None
+        self.next_legion    = None
         self.alerted_id     = None
-        self.update_tag     = None     # set when update is available
+        self.update_tag     = None
+        self.locked         = False
+        self.is_hidden      = False
         self._drag_x = self._drag_y = 0
         self.W = 400
+
+        # ── Colors ──────────────────────────────
+        self.bg          = "#0a0a0a"
+        self.col_dim     = "#3f3f46"
+        self.col_update  = "#22c55e"
+        self.transparent = "#fe00fe"
 
         # ── Load logo ────────────────────────────
         self.logo_img = None
         if os.path.exists(LOGO_FILE):
             try:
-                img = Image.open(LOGO_FILE).resize(
-                    (LOGO_SIZE, LOGO_SIZE), Image.LANCZOS
-                )
+                img = Image.open(LOGO_FILE).resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
                 self.logo_img = ImageTk.PhotoImage(img)
             except Exception:
                 pass
@@ -99,103 +115,247 @@ class OverlayApp:
         self.root.wm_attributes("-transparentcolor", self.transparent)
 
         # ── Canvas ───────────────────────────────
-        self.cv = tk.Canvas(
-            self.root, width=self.W, height=H,
-            bg=self.transparent, highlightthickness=0
-        )
+        self.cv = tk.Canvas(self.root, width=self.W, height=H, bg=self.transparent, highlightthickness=0)
         self.cv.pack(fill="both", expand=True)
 
-        self.bg_rect = self.cv.create_rectangle(
-            1, 1, self.W - 1, H - 1,
-            fill=self.bg, outline=self.border, width=2
-        )
+        self.bg_rect = self.cv.create_rectangle(1, 1, self.W - 1, H - 1, fill=self.bg, width=2)
 
-        self.wb_item = self.cv.create_text(
-            HPAD, H // 2, text="Loading...",
-            anchor="w", font=("Consolas", 12, "bold"), fill=self.col_gold
-        )
+        font_main = ("Consolas", 12, "bold")
+        font_icon = ("Segoe UI", 11, "bold")
 
-        self.sep_item = self.cv.create_text(
-            0, H // 2, text="║",
-            anchor="center", font=("Consolas", 12, "bold"), fill=self.col_dim
-        )
+        self.wb_item  = self.cv.create_text(HPAD, H // 2, text="Loading...", anchor="w", font=font_main)
+        self.sep_1    = self.cv.create_text(0, H // 2, text="║", anchor="center", font=font_main, fill=self.col_dim)
+        self.ht_item  = self.cv.create_text(0, H // 2, text="HT: ...", anchor="w", font=font_main)
+        self.sep_2    = self.cv.create_text(0, H // 2, text="║", anchor="center", font=font_main, fill=self.col_dim)
+        self.lg_item  = self.cv.create_text(0, H // 2, text="LG: ...", anchor="w", font=font_main)
 
-        self.ht_item = self.cv.create_text(
-            0, H // 2, text="HT: ...",
-            anchor="w", font=("Consolas", 12, "bold"), fill=self.col_gray
-        )
-
-        # Update button (hidden until update available)
-        self.update_btn = self.cv.create_text(
-            0, H // 2, text="↑",
-            anchor="center", font=("Segoe UI", 11, "bold"),
-            fill=self.col_update, activefill="#4ade80", state="hidden"
-        )
+        # Update button
+        self.update_btn = self.cv.create_text(0, H // 2, text="↑", anchor="center", font=font_icon, fill=self.col_update, state="hidden")
         self.cv.tag_bind(self.update_btn, "<Button-1>", self._on_update_click)
+        
+        # Settings button
+        self.settings_btn = self.cv.create_text(0, H // 2, text="⚙", anchor="center", font=font_icon, fill=self.col_dim, activefill="#ffffff")
+        self.cv.tag_bind(self.settings_btn, "<Button-1>", self._open_settings)
 
         # Logo
         self.logo_border_id = None
         self.logo_img_id    = None
         if self.logo_img:
-            self.logo_border_id = self.cv.create_rectangle(
-                0, 4, LOGO_SIZE + 8, H - 4,
-                fill="#111111", outline=self.border, width=1
-            )
-            self.logo_img_id = self.cv.create_image(
-                0, H // 2, image=self.logo_img, anchor="center"
-            )
+            self.logo_border_id = self.cv.create_rectangle(0, 4, LOGO_SIZE + 8, H - 4, fill="#111111", width=1)
+            self.logo_img_id = self.cv.create_image(0, H // 2, image=self.logo_img, anchor="center")
 
-        self.close_btn = self.cv.create_text(
-            0, H // 2, text="✕",
-            anchor="center", font=("Segoe UI", 11, "bold"),
-            fill=self.col_dim, activefill="#ef4444"
-        )
+        # Close button
+        self.close_btn = self.cv.create_text(0, H // 2, text="✕", anchor="center", font=font_icon, fill=self.col_dim, activefill="#ef4444")
         self.cv.tag_bind(self.close_btn, "<Button-1>", self._quit)
 
-        self.cv.bind("<ButtonPress-1>",   self._drag_start)
+        # Lock indicator (hidden by default)
+        self.lock_indicator = self.cv.create_text(0, H // 2, text="🔒", anchor="center", font=("Segoe UI", 9), fill="#ffffff", state="hidden")
+
+        self.cv.bind("<ButtonPress-1>", self._drag_start)
         self.cv.bind("<ButtonRelease-1>", self._drag_stop)
-        self.cv.bind("<B1-Motion>",       self._drag_move)
+        self.cv.bind("<B1-Motion>", self._drag_move)
+
+        self._apply_theme()
+
+        # Keyboard Hook for Lock Mode
+        keyboard.add_hotkey('ctrl+l', self._toggle_lock)
 
         threading.Thread(target=self._fetch_loop, daemon=True).start()
         threading.Thread(target=self._update_check_loop, daemon=True).start()
+        if self.config["auto_hide"]:
+            threading.Thread(target=self._auto_hide_loop, daemon=True).start()
+        
         self._tick()
+
+    # ── Config ──────────────────────────────────
+    def _load_config(self):
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    self.config.update(json.load(f))
+            except: pass
+
+    def _save_config(self):
+        try:
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(self.config, f, indent=4)
+        except: pass
+
+    def _apply_theme(self):
+        t = THEMES.get(self.config["theme"], THEMES["Default Crimson"])
+        self.cv.itemconfig(self.bg_rect, outline=t["border"])
+        if self.logo_border_id:
+            self.cv.itemconfig(self.logo_border_id, outline=t["border"])
+        self._relayout() # forces redraw with new colors in tick
+
+    # ── Settings UI ─────────────────────────────
+    def _open_settings(self, _=None):
+        if self.locked: return
+        win = tk.Toplevel(self.root)
+        win.title("Overlay Settings")
+        win.geometry("340x360")
+        win.configure(bg="#111111")
+        win.wm_attributes("-topmost", True)
+        
+        if self.logo_img:
+            win.iconphoto(False, self.logo_img)
+        
+        # Header
+        tk.Label(win, text="⚙ Settings", font=("Segoe UI", 16, "bold"), bg="#111111", fg="#ffffff").pack(pady=(20, 15))
+
+        # Container
+        f = tk.Frame(win, bg="#111111")
+        f.pack(fill="x", padx=30)
+        
+        # ── Alert Time (Custom Spinner) ──
+        tk.Label(f, text="Alert Time:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=10)
+        
+        alert_frame = tk.Frame(f, bg="#111111")
+        alert_frame.grid(row=0, column=1, columnspan=2, sticky="e")
+        
+        alert_var = tk.IntVar(value=self.config.get("alert_minutes", 5))
+        valid_times = [1, 5, 10, 15]
+        if alert_var.get() not in valid_times:
+            alert_var.set(5)
+            
+        def change_alert(delta):
+            idx = valid_times.index(alert_var.get())
+            new_idx = (idx + delta) % len(valid_times)
+            alert_var.set(valid_times[new_idx])
+            lbl_alert.config(text=f"{alert_var.get()} mins")
+
+        btn_minus = tk.Label(alert_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_minus.pack(side="left", padx=5)
+        btn_minus.bind("<Button-1>", lambda _: change_alert(-1))
+        
+        lbl_alert = tk.Label(alert_frame, text=f"{alert_var.get()} mins", bg="#27272a", fg="white", width=8, font=("Segoe UI", 10, "bold"))
+        lbl_alert.pack(side="left")
+        
+        btn_plus = tk.Label(alert_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_plus.pack(side="left", padx=5)
+        btn_plus.bind("<Button-1>", lambda _: change_alert(1))
+
+        # ── Toggles ──
+        sound_var = tk.BooleanVar(value=self.config.get("sound_enabled", True))
+        hide_var = tk.BooleanVar(value=self.config.get("auto_hide", False))
+
+        def create_toggle(parent, text, var, row):
+            tk.Label(parent, text=text, bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=row, column=0, sticky="w", pady=8)
+            btn = tk.Label(parent, text="ON" if var.get() else "OFF", width=6, font=("Segoe UI", 9, "bold"),
+                           bg="#22c55e" if var.get() else "#3f3f46", fg="white", cursor="hand2")
+            btn.grid(row=row, column=1, columnspan=2, sticky="e")
+            def toggle(_):
+                var.set(not var.get())
+                btn.config(text="ON" if var.get() else "OFF", bg="#22c55e" if var.get() else "#3f3f46")
+            btn.bind("<Button-1>", toggle)
+
+        create_toggle(f, "Sound Alerts", sound_var, 1)
+        create_toggle(f, "Auto-hide on exit", hide_var, 2)
+
+        # ── Theme (Custom Selector) ──
+        tk.Label(f, text="Theme:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=3, column=0, sticky="w", pady=10)
+        
+        theme_frame = tk.Frame(f, bg="#111111")
+        theme_frame.grid(row=3, column=1, columnspan=2, sticky="e")
+        
+        theme_var = tk.StringVar(value=self.config.get("theme", "Default Crimson"))
+        themes_list = list(THEMES.keys())
+        if theme_var.get() not in themes_list:
+            theme_var.set(themes_list[0])
+            
+        def change_theme(delta):
+            idx = themes_list.index(theme_var.get())
+            new_idx = (idx + delta) % len(themes_list)
+            theme_var.set(themes_list[new_idx])
+            lbl_theme.config(text=theme_var.get())
+
+        btn_t_minus = tk.Label(theme_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_t_minus.pack(side="left", padx=5)
+        btn_t_minus.bind("<Button-1>", lambda _: change_theme(-1))
+        
+        lbl_theme = tk.Label(theme_frame, text=theme_var.get(), bg="#27272a", fg="white", width=14, font=("Segoe UI", 10, "bold"))
+        lbl_theme.pack(side="left")
+        
+        btn_t_plus = tk.Label(theme_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_t_plus.pack(side="left", padx=5)
+        btn_t_plus.bind("<Button-1>", lambda _: change_theme(1))
+
+        def save():
+            self.config["alert_minutes"] = alert_var.get()
+            self.config["sound_enabled"] = sound_var.get()
+            self.config["auto_hide"] = hide_var.get()
+            self.config["theme"] = theme_var.get()
+            self._save_config()
+            self._apply_theme()
+            win.destroy()
+            
+            if self.config["auto_hide"]:
+                threading.Thread(target=self._auto_hide_loop, daemon=True).start()
+
+        # ── Save Button ──
+        btn_frame = tk.Frame(win, bg="#111111")
+        btn_frame.pack(fill="x", pady=(25, 10), padx=30)
+        tk.Button(btn_frame, text="Save Settings", command=save, bg="#3b82f6", fg="white", activebackground="#2563eb", activeforeground="white", relief="flat", font=("Segoe UI", 10, "bold"), cursor="hand2", pady=6).pack(fill="x")
+        
+        # ── Hotkey Help ──
+        tk.Label(win, text="Tip: Press Ctrl + L to lock/unlock overlay", bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=10)
+
+    # ── Auto-hide ───────────────────────────────
+    def _auto_hide_loop(self):
+        while self.config["auto_hide"]:
+            is_running = any("Diablo IV.exe" == p.name() for p in psutil.process_iter(['name']))
+            if is_running and self.is_hidden:
+                self.root.deiconify()
+                self.is_hidden = False
+            elif not is_running and not self.is_hidden:
+                self.root.withdraw()
+                self.is_hidden = True
+            time.sleep(5)
+            
+    # ── Click-through Lock ──────────────────────
+    def _toggle_lock(self):
+        self.locked = not self.locked
+        ex_style = ctypes.windll.user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
+        if self.locked:
+            ctypes.windll.user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, ex_style | WS_EX_TRANSPARENT | WS_EX_LAYERED)
+            self.root.after(0, lambda: self.cv.itemconfig(self.lock_indicator, state="normal"))
+            self.root.after(0, lambda: self.cv.itemconfig(self.close_btn, state="hidden"))
+            self.root.after(0, lambda: self.cv.itemconfig(self.settings_btn, state="hidden"))
+        else:
+            ctypes.windll.user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, ex_style & ~WS_EX_TRANSPARENT)
+            self.root.after(0, lambda: self.cv.itemconfig(self.lock_indicator, state="hidden"))
+            self.root.after(0, lambda: self.cv.itemconfig(self.close_btn, state="normal"))
+            self.root.after(0, lambda: self.cv.itemconfig(self.settings_btn, state="normal"))
 
     # ── Layout ──────────────────────────────────
     def _relayout(self):
         wb_bbox = self.cv.bbox(self.wb_item)
         ht_bbox = self.cv.bbox(self.ht_item)
-        if not wb_bbox or not ht_bbox:
-            return
-
-        wb_w = wb_bbox[2] - wb_bbox[0]
-        ht_w = ht_bbox[2] - ht_bbox[0]
+        lg_bbox = self.cv.bbox(self.lg_item)
+        if not wb_bbox or not ht_bbox or not lg_bbox: return
 
         x = HPAD
+        self.cv.coords(self.wb_item, x, H // 2); x += (wb_bbox[2] - wb_bbox[0]) + HPAD
+        self.cv.coords(self.sep_1, x + SEP_W // 2, H // 2); x += SEP_W + HPAD
+        self.cv.coords(self.ht_item, x, H // 2); x += (ht_bbox[2] - ht_bbox[0]) + HPAD
+        self.cv.coords(self.sep_2, x + SEP_W // 2, H // 2); x += SEP_W + HPAD
+        self.cv.coords(self.lg_item, x, H // 2); x += (lg_bbox[2] - lg_bbox[0]) + HPAD
 
-        wb_x  = x;  x += wb_w + HPAD
-        sep_x = x + SEP_W // 2;  x += SEP_W + HPAD
-        ht_x  = x;  x += ht_w + HPAD
-
-        # Update button (only visible when update available)
         upd_x = None
         if self.update_tag:
-            upd_x = x + 10
-            x += 20 + HPAD
+            upd_x = x + 10; x += BTN_W + HPAD
 
         if self.logo_img:
-            logo_left = x
-            logo_cx   = x + self.LOGO_BOX_W // 2
-            x += self.LOGO_BOX_W + HPAD
+            logo_left = x; logo_cx = x + self.LOGO_BOX_W // 2; x += self.LOGO_BOX_W + HPAD
 
-        close_x = x + CLOSE_W // 2
-        x += CLOSE_W + HPAD // 2
+        set_x = x + BTN_W // 2; x += BTN_W + HPAD // 2
+        close_x = x + BTN_W // 2; x += BTN_W + HPAD // 2
 
         new_w = x
 
-        self.cv.coords(self.wb_item,   wb_x,   H // 2)
-        self.cv.coords(self.sep_item,  sep_x,  H // 2)
-        self.cv.coords(self.ht_item,   ht_x,   H // 2)
+        self.cv.coords(self.settings_btn, set_x, H // 2)
         self.cv.coords(self.close_btn, close_x, H // 2)
+        self.cv.coords(self.lock_indicator, close_x, H // 2) # Shows in place of close btn when locked
 
         if upd_x is not None:
             self.cv.coords(self.update_btn, upd_x, H // 2)
@@ -204,8 +364,7 @@ class OverlayApp:
             self.cv.itemconfig(self.update_btn, state="hidden")
 
         if self.logo_img:
-            self.cv.coords(self.logo_border_id,
-                           logo_left, 4, logo_left + self.LOGO_BOX_W, H - 4)
+            self.cv.coords(self.logo_border_id, logo_left, 4, logo_left + self.LOGO_BOX_W, H - 4)
             self.cv.coords(self.logo_img_id, logo_cx, H // 2)
 
         if new_w != self.W:
@@ -218,22 +377,22 @@ class OverlayApp:
 
     # ── Drag ────────────────────────────────────
     def _drag_start(self, e):
-        if e.x > self.W - (CLOSE_W + HPAD):
-            return
+        if self.locked or e.x > self.W - (BTN_W * 2 + HPAD): return
         self._drag_x, self._drag_y = e.x, e.y
 
     def _drag_stop(self, e):
         self._drag_x = self._drag_y = 0
 
     def _drag_move(self, e):
-        if self._drag_x:
+        if self._drag_x and not self.locked:
             x = self.root.winfo_x() + (e.x - self._drag_x)
             y = self.root.winfo_y() + (e.y - self._drag_y)
             self.root.geometry(f"+{x}+{y}")
 
     def _quit(self, _=None):
-        self.root.destroy()
-        sys.exit(0)
+        if not self.locked:
+            self.root.destroy()
+            sys.exit(0)
 
     # ── Data fetch ──────────────────────────────
     def _fetch_loop(self):
@@ -252,153 +411,124 @@ class OverlayApp:
                 if ev["timestamp"] > now:
                     self.next_boss = ev
                     break
-
             for ev in data.get("helltide", []):
                 if ev["timestamp"] + HELLTIDE_DURATION > now:
                     self.next_helltide = ev
                     break
-        except Exception as e:
-            print(f"[fetch error] {e}")
+            for ev in data.get("legion", []):
+                if ev["timestamp"] > now:
+                    self.next_legion = ev
+                    break
+        except: pass
 
     # ── Auto-update ─────────────────────────────
     def _update_check_loop(self):
-        time.sleep(5)   # wait for UI to settle first
+        time.sleep(5)
         while True:
             self._check_update()
-            time.sleep(3600)    # re-check every hour
+            time.sleep(3600)
 
     def _check_update(self):
         try:
-            req  = urllib.request.Request(
-                GITHUB_API_URL, headers={"User-Agent": "Mozilla/5.0"}
-            )
+            req  = urllib.request.Request(GITHUB_API_URL, headers={"User-Agent": "Mozilla/5.0"})
             data = json.loads(urllib.request.urlopen(req).read())
             tag  = data.get("tag_name", "")
-            if not tag:
-                return
-            if _version_tuple(tag) > _version_tuple(VERSION):
+            if tag and _version_tuple(tag) > _version_tuple(VERSION):
                 self.update_tag = tag
-                print(f"[updater] New version available: {tag}")
-        except Exception as e:
-            print(f"[updater check error] {e}")
+        except: pass
 
     def _on_update_click(self, _=None):
-        if not self.update_tag:
-            return
+        if not self.update_tag or self.locked: return
         tag = self.update_tag
-        ans = msgbox.askyesno(
-            "Update available",
-            f"Version {tag} is available (you have v{VERSION}).\n\nDownload and install now?",
-            parent=self.root
-        )
+        ans = msgbox.askyesno("Update", f"Update to {tag}?", parent=self.root)
         if ans:
             threading.Thread(target=self._do_update, args=(tag,), daemon=True).start()
 
     def _do_update(self, tag: str):
         try:
             exe_name = "D4-Overlay.exe"
-            dl_url   = (
-                f"https://github.com/{GITHUB_REPO}/releases/download/"
-                f"{tag}/{exe_name}"
-            )
-
+            dl_url   = f"https://github.com/{GITHUB_REPO}/releases/download/{tag}/{exe_name}"
             if getattr(sys, 'frozen', False):
                 current_exe = sys.executable
             else:
-                # Running as .py — nothing to replace, just open browser
                 import webbrowser
                 webbrowser.open(f"https://github.com/{GITHUB_REPO}/releases/latest")
                 return
 
-            # Download to temp file next to exe
             exe_dir  = os.path.dirname(current_exe)
             tmp_path = os.path.join(exe_dir, "D4-Overlay_update.exe")
 
-            self.root.after(0, lambda: self.cv.itemconfig(
-                self.update_btn, text="↓", fill="#facc15"
-            ))
-
+            self.root.after(0, lambda: self.cv.itemconfig(self.update_btn, text="↓", fill="#facc15"))
             req = urllib.request.Request(dl_url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req) as resp, open(tmp_path, "wb") as f:
                 f.write(resp.read())
 
-            # Write a helper batch that replaces exe after we exit
             bat_path = os.path.join(exe_dir, "_d4_update.bat")
             with open(bat_path, "w") as f:
-                f.write(
-                    f"@echo off\n"
-                    f"timeout /t 2 /nobreak >nul\n"
-                    f"move /y \"{tmp_path}\" \"{current_exe}\"\n"
-                    f"start \"\" \"{current_exe}\"\n"
-                    f"del \"%~f0\"\n"
-                )
-
-            subprocess.Popen(
-                ["cmd", "/c", bat_path],
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
+                f.write(f"@echo off\ntimeout /t 2 /nobreak >nul\nmove /y \"{tmp_path}\" \"{current_exe}\"\nstart \"\" \"{current_exe}\"\ndel \"%~f0\"\n")
+            subprocess.Popen(["cmd", "/c", bat_path], creationflags=subprocess.CREATE_NO_WINDOW)
             self.root.destroy()
             sys.exit(0)
-
         except Exception as e:
-            print(f"[updater download error] {e}")
             msgbox.showerror("Update failed", str(e), parent=self.root)
 
     # ── Sound ───────────────────────────────────
     def _play_sound(self):
+        if not self.config["sound_enabled"]: return
         if os.path.exists(CUSTOM_SOUND):
-            winsound.PlaySound(CUSTOM_SOUND,
-                               winsound.SND_FILENAME | winsound.SND_ASYNC)
+            winsound.PlaySound(CUSTOM_SOUND, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
-            winsound.PlaySound("SystemAsterisk",
-                               winsound.SND_ALIAS | winsound.SND_ASYNC)
+            winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
 
     # ── UI tick ─────────────────────────────────
     def _tick(self):
         now = time.time()
+        t = THEMES.get(self.config["theme"], THEMES["Default Crimson"])
 
+        # World Boss
         if self.next_boss:
             left = int(self.next_boss["timestamp"] - now)
             if left > 0:
                 h, m, s = left // 3600, (left % 3600) // 60, left % 60
-                names = list({z["boss"] for z in self.next_boss.get("zone", [])
-                              if "boss" in z})
-                if not names:
-                    names = [self.next_boss.get("boss", "World Boss")]
-                label = " & ".join(names) + f"  {h:02d}:{m:02d}:{s:02d}"
-                self.cv.itemconfig(self.wb_item, text=label, fill=self.col_gold)
+                names = list({z["boss"] for z in self.next_boss.get("zone", []) if "boss" in z})
+                if not names: names = [self.next_boss.get("boss", "World Boss")]
+                self.cv.itemconfig(self.wb_item, text=" & ".join(names) + f"  {h:02d}:{m:02d}:{s:02d}", fill=t["wb"])
 
-                if left <= ALERT_MINUTES * 60 and self.alerted_id != self.next_boss["id"]:
+                if left <= self.config["alert_minutes"] * 60 and self.alerted_id != self.next_boss["id"]:
                     self._play_sound()
                     self.alerted_id = self.next_boss["id"]
             else:
-                self.cv.itemconfig(self.wb_item,
-                                   text="⚔  World Boss Active!", fill=self.col_red)
+                self.cv.itemconfig(self.wb_item, text="⚔  World Boss Active!", fill=t["active"])
         else:
-            self.cv.itemconfig(self.wb_item, text="WB: connecting...", fill=self.col_gray)
+            self.cv.itemconfig(self.wb_item, text="WB: connecting...", fill=t["idle"])
 
+        # Helltide
         if self.next_helltide:
             ht_start = self.next_helltide["timestamp"]
             ht_end   = ht_start + HELLTIDE_DURATION
             if now < ht_start:
                 left = int(ht_start - now)
-                m, s = left // 60, left % 60
-                self.cv.itemconfig(self.ht_item,
-                                   text=f"HT in {m:02d}:{s:02d}", fill=self.col_gray)
+                self.cv.itemconfig(self.ht_item, text=f"HT in {left//60:02d}:{left%60:02d}", fill=t["idle"])
             elif now < ht_end:
                 left = int(ht_end - now)
-                m, s = left // 60, left % 60
-                self.cv.itemconfig(self.ht_item,
-                                   text=f"HT: {m:02d}:{s:02d}", fill=self.col_red)
+                self.cv.itemconfig(self.ht_item, text=f"HT: {left//60:02d}:{left%60:02d}", fill=t["active"])
             else:
-                self.cv.itemconfig(self.ht_item,
-                                   text="HT starting...", fill=self.col_gray)
+                self.cv.itemconfig(self.ht_item, text="HT starting...", fill=t["idle"])
         else:
-            self.cv.itemconfig(self.ht_item, text="HT: ...", fill=self.col_gray)
+            self.cv.itemconfig(self.ht_item, text="HT: ...", fill=t["idle"])
+
+        # Legion
+        if self.next_legion:
+            left = int(self.next_legion["timestamp"] - now)
+            if left > 0:
+                self.cv.itemconfig(self.lg_item, text=f"LG: {left//60:02d}:{left%60:02d}", fill=t["idle"])
+            else:
+                self.cv.itemconfig(self.lg_item, text="⚔ LG Active!", fill=t["active"])
+        else:
+            self.cv.itemconfig(self.lg_item, text="LG: ...", fill=t["idle"])
 
         self._relayout()
         self.root.after(1000, self._tick)
-
 
 if __name__ == "__main__":
     root = tk.Tk()

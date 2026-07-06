@@ -1,0 +1,6 @@
+{
+    "alert_minutes": 5,
+    "sound_enabled": true,
+    "auto_hide": true,
+    "theme": "Default Crimson"
+}

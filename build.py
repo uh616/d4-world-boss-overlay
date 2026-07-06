@@ -36,7 +36,7 @@ print("      Done — dist/D4-Overlay.exe created")
 print("[3/3] Creating release zip...")
 import zipfile, shutil
 
-zip_name = "D4-Overlay-v1.1.0.zip"
+zip_name = "D4-Overlay-v1.2.0.zip"
 with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zf:
     zf.write("dist/D4-Overlay.exe", "D4-Overlay.exe")
     zf.write("README.md", "README.md")
