@@ -76,4 +76,23 @@ python build.py
 
 ---
 
+---
+
+## ❤️ Support
+
+If you find this useful and want to say thanks:
+
+**[→ Boosty (card / any currency)](https://boosty.to/6i6)**
+
+Or crypto:
+
+| Coin | Address |
+|---|---|
+| **GRAM** (prev. TON) | `UQCU_NuO-7aKcYYiEsnkSd1rFpBtylB1C6upKWv7jY9r8ARe` |
+| **USDT TRC20** | `TMSLWBy3eXvR6m1h3Zthmek2SGozXvmXHK` |
+| **USDT TON (GRAM)** | `UQB7K0h4JlvPB7PA-as39RsepNtSrw167v5cmmoJlIJp_dNb` |
+| **Bitcoin** | `bc1qn93nz3m299lktk66vnxa5aha68kh9az3xpjvac` |
+
+---
+
 *Made for the viewers of [Twitch channel solnechniyre6enok](https://www.twitch.tv/solnechniyre6enok)*
