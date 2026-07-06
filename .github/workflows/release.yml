@@ -40,17 +40,6 @@ jobs:
       - name: Build exe and zip
         run: python build.py
 
-      - name: Find release zip
-        id: find_zip
-        shell: python
-        run: |
-          import glob, os
-          zips = glob.glob("D4-Overlay-v*.zip")
-          if zips:
-              print(f"ZIP={zips[0]}")
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write(f"zip_name={zips[0]}\n")
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -66,6 +55,6 @@ jobs:
             - Settings (themes, alert time, auto-hide)
             - Click-through mode: `Ctrl + L`
             - Custom sound: place `alert.wav` next to the exe
-          files: ${{ steps.find_zip.outputs.zip_name }}
+          files: D4-Overlay-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
