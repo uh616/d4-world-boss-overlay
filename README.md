@@ -8,8 +8,6 @@
 
 **[→ Releases (скачать D4-Overlay.exe)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)**
 
-Никакого Python не нужно — просто скачай и запусти!
-
 ---
 
 ## Установка
