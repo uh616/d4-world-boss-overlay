@@ -8,6 +8,24 @@ import os
 import sys
 from PIL import Image, ImageTk
 
+
+def _bundled(filename: str) -> str:
+    """Return path to a file bundled inside the .exe (via PyInstaller --add-data).
+    Falls back to the script directory when running as plain Python."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+
+def _beside_exe(filename: str) -> str:
+    """Return path to a file that sits next to the .exe (user-replaceable).
+    Works both in .exe mode and plain Python mode."""
+    if getattr(sys, 'frozen', False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, filename)
+
 # ─────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────
@@ -18,8 +36,8 @@ GITHUB_REPO = "uh616/d4-world-boss-overlay"
 API_URL          = "https://helltides.com/api/schedule"
 REFRESH_INTERVAL = 300      # seconds between API refreshes
 ALERT_MINUTES    = 5        # alert N minutes before world boss
-CUSTOM_SOUND     = "alert.wav"
-LOGO_FILE        = "logo.png"
+CUSTOM_SOUND     = _beside_exe("alert.wav")   # user can replace next to exe
+LOGO_FILE        = _bundled("logo.png")        # bundled inside the exe
 LOGO_SIZE        = 26       # px
 
 # Helltide lasts 55 minutes
@@ -40,7 +58,7 @@ class OverlayApp:
         self.col_red      = "#ef4444"   # helltide active
         self.col_gray     = "#a1a1aa"   # helltide countdown
         self.col_dim      = "#3f3f46"   # separator / close btn
-        self.transparent  = "black"
+        self.transparent  = "#fe00fe"   # unique key color — avoids corrupting dark logo pixels
 
         # ── State ────────────────────────────────
         self.next_boss     = None

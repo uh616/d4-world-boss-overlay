@@ -1,26 +1,24 @@
 # Diablo 4 Overlay — World Boss & Helltide
 
-Компактный оверлей поверх игры который показывает таймер до следующего **World Boss** и статус **Helltide** в реальном времени.
-
-Данные берутся с [helltides.com](https://helltides.com) — самого популярного трекера событий D4.
+Компактный оверлей поверх игры который показывает таймер до следующего **World Boss** и статус **Helltide** в реальном времени. Данные берутся с [helltides.com](https://helltides.com).
 
 ---
 
-## Скриншот
+## ⬇️ Скачать
 
-![overlay preview](preview.png)
+**[→ Releases (скачать D4-Overlay.exe)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)**
+
+Никакого Python не нужно — просто скачай и запусти!
 
 ---
 
-## Установка (первый раз)
+## Установка
 
-> Требуется **Python 3.8+** — [скачать тут](https://www.python.org/downloads/)  
-> При установке Python поставьте галочку **"Add Python to PATH"**
+1. Скачайте **`D4-Overlay.exe`** из последнего [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
+2. Положите файл куда удобно (например, рабочий стол)
+3. Запустите — оверлей появится в верхнем левом углу экрана
 
-**1.** Скачайте архив: **[Releases →](https://github.com/uh616/d4-world-boss-overlay/releases/latest)**  
-**2.** Распакуйте куда удобно  
-**3.** Запустите `install.bat` — он поставит необходимые зависимости (один раз)  
-**4.** Запускайте `start_overlay.bat` каждый раз перед игрой
+> ⚠️ Windows Defender может показать предупреждение "Неизвестный издатель" — это нормально для неподписанных программ. Нажмите **"Подробнее" → "Всё равно запустить"**.
 
 ---
 
@@ -33,21 +31,33 @@
 
 ---
 
-## Кастомный звук (5 минут до World Boss)
+## Что показывает
+
+```
+Ashava & Avarice  01:23:45  ║  HT: 38:21  🖼  ✕
+```
+
+- **Слева** — имя World Boss и обратный отсчёт до появления
+- **HT: XX:XX** — оставшееся время активного Helltide (красный)
+- **HT in XX:XX** — время до начала следующего Helltide (серый)
+- **⚔ World Boss Active!** — когда босс уже появился
+
+---
+
+## Кастомный звук (сигнал за 5 минут до World Boss)
 
 По умолчанию играет стандартный звук Windows.
 
 **Чтобы поставить свой звук:**
-1. Найдите любой `.wav` файл (MP3 не подходит, конвертируйте через [CloudConvert](https://cloudconvert.com/mp3-to-wav))
-2. Положите его в папку рядом с `overlay.py`
-3. Переименуйте в **`alert.wav`**
+1. Найдите `.wav` файл (MP3 → конвертируй на [CloudConvert](https://cloudconvert.com/mp3-to-wav))
+2. Положи рядом с `D4-Overlay.exe`
+3. Переименуй в **`alert.wav`**
 
-**Чтобы убрать звук совсем:**  
-Просто не кладите файл `alert.wav` — будет стандартный Windows-звук. Или закомментируйте строку `_play_sound` в коде.
+**Чтобы вернуть стандартный звук** — просто удали `alert.wav`.
 
 ---
 
-## Для разработчиков
+## Для разработчиков (запуск из исходников)
 
 ```bash
 git clone https://github.com/uh616/d4-world-boss-overlay.git
@@ -56,12 +66,11 @@ pip install -r requirements.txt
 python overlay.py
 ```
 
+**Собрать .exe:**
+```bash
+python build.py
+```
+
 ---
 
-## Данные
-
-Таймер использует неофициальный API сайта **helltides.com**. Если сайт недоступен — оверлей покажет "connecting..." и попробует снова через 5 минут.
-
----
-
-*Сделано для зрителей [Twitch канала uh616](https://www.twitch.tv/uh616)*
+*Сделано для зрителей [Twitch канала solnechniyre6enok](https://www.twitch.tv/solnechniyre6enok)*
