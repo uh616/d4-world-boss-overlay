@@ -31,7 +31,7 @@ def _beside_exe(filename: str) -> str:
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.0"
+VERSION     = "1.3.1"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -313,34 +313,25 @@ class OverlayApp:
         btn_t_plus.pack(side="left", padx=5)
         btn_t_plus.bind("<Button-1>", lambda _: change_theme(1))
         
-        # ── Opacity (Custom Spinner) ──
+        # ── Opacity (Slider) ──
         tk.Label(f, text="Opacity:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=4, column=0, sticky="w", pady=8)
         
         op_frame = tk.Frame(f, bg="#111111")
         op_frame.grid(row=4, column=1, columnspan=2, sticky="e")
         
         opacity_var = tk.IntVar(value=int(self.config.get("opacity", 0.9) * 100))
-        valid_ops = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-        if opacity_var.get() not in valid_ops:
-            opacity_var.set(90)
-            
-        def change_opacity(delta):
-            idx = valid_ops.index(opacity_var.get())
-            new_idx = (idx + delta) % len(valid_ops)
-            opacity_var.set(valid_ops[new_idx])
-            lbl_op.config(text=f"{opacity_var.get()}%")
+        
+        def on_opacity_slide(val):
+            opacity_var.set(int(float(val)))
             _auto_save()
-
-        btn_o_minus = tk.Label(op_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_o_minus.pack(side="left", padx=5)
-        btn_o_minus.bind("<Button-1>", lambda _: change_opacity(-1))
+            
+        slider = tk.Scale(op_frame, from_=10, to=100, orient="horizontal", variable=opacity_var, command=on_opacity_slide,
+                          bg="#111111", fg="#a1a1aa", troughcolor="#27272a", highlightthickness=0, length=120, showvalue=False)
+        slider.pack(side="left", padx=(0, 5))
         
-        lbl_op = tk.Label(op_frame, text=f"{opacity_var.get()}%", bg="#27272a", fg="white", width=8, font=("Segoe UI", 10, "bold"))
+        lbl_op = tk.Label(op_frame, textvariable=opacity_var, bg="#27272a", fg="white", width=4, font=("Segoe UI", 9, "bold"))
         lbl_op.pack(side="left")
-        
-        btn_o_plus = tk.Label(op_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_o_plus.pack(side="left", padx=5)
-        btn_o_plus.bind("<Button-1>", lambda _: change_opacity(1))
+        tk.Label(op_frame, text="%", bg="#27272a", fg="white", font=("Segoe UI", 9, "bold")).pack(side="left")
 
         # ── Display section ──
         sep_line = tk.Frame(win, bg="#27272a", height=1)
