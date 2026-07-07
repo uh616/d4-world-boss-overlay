@@ -20,6 +20,11 @@
     ],
     "directories": {
       "output": "dist"
+    },
+    "publish": {
+      "provider": "github",
+      "draft": false,
+      "prerelease": false
     }
   },
   "repository": {
