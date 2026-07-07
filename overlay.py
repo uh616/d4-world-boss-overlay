@@ -66,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.5"
+VERSION     = "1.3.6"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -393,15 +393,32 @@ class OverlayApp:
 
     # ── Auto-hide ───────────────────────────────
     def _auto_hide_loop(self):
+        user32 = ctypes.windll.user32
+        my_pid = os.getpid()
+        
         while self.config["auto_hide"]:
-            is_running = any("Diablo IV.exe" == p.name() for p in psutil.process_iter(['name']))
-            if is_running and self.is_hidden:
+            hwnd = user32.GetForegroundWindow()
+            fg_pid = ctypes.c_ulong()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(fg_pid))
+            
+            is_active = False
+            if fg_pid.value == my_pid:
+                is_active = True
+            elif fg_pid.value > 0:
+                try:
+                    p = psutil.Process(fg_pid.value)
+                    if p.name() == "Diablo IV.exe":
+                        is_active = True
+                except:
+                    pass
+                    
+            if is_active and self.is_hidden:
                 self.root.deiconify()
                 self.is_hidden = False
-            elif not is_running and not self.is_hidden:
+            elif not is_active and not self.is_hidden:
                 self.root.withdraw()
                 self.is_hidden = True
-            time.sleep(5)
+            time.sleep(1)
             
     # ── Click-through Lock ──────────────────────
     def _toggle_lock(self):
