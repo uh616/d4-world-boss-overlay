@@ -27,11 +27,40 @@ def _beside_exe(filename: str) -> str:
         base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, filename)
 
+class ModernSlider(tk.Canvas):
+    def __init__(self, parent, width, height, bg, trough, slider, command=None, initial=100):
+        super().__init__(parent, width=width, height=height, bg=bg, highlightthickness=0)
+        self.command = command
+        self.val = initial
+        self.c_trough = trough
+        self.c_slider = slider
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<B1-Motion>", self._on_drag)
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = int(self['width']), int(self['height'])
+        self.create_line(10, h//2, w-10, h//2, fill=self.c_trough, width=4, capstyle="round")
+        x = 10 + (self.val - 10) / 90 * (w - 20)
+        self.create_oval(x-7, h//2-7, x+7, h//2+7, fill=self.c_slider, outline="")
+
+    def _update_val(self, x):
+        w = int(self['width'])
+        x = max(10, min(w-10, x))
+        self.val = int(10 + (x - 10) / (w - 20) * 90)
+        self._draw()
+        if self.command:
+            self.command(self.val)
+
+    def _on_click(self, e): self._update_val(e.x)
+    def _on_drag(self, e): self._update_val(e.x)
+
 # ─────────────────────────────────────────
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.1"
+VERSION     = "1.3.2"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -204,7 +233,7 @@ class OverlayApp:
         win = tk.Toplevel(self.root)
         self.settings_win = win
         win.title("Overlay Settings")
-        win.geometry("340x500")
+        win.geometry("340x510")
         win.configure(bg="#111111")
         win.wm_attributes("-topmost", True)
         
@@ -322,11 +351,11 @@ class OverlayApp:
         opacity_var = tk.IntVar(value=int(self.config.get("opacity", 0.9) * 100))
         
         def on_opacity_slide(val):
-            opacity_var.set(int(float(val)))
+            opacity_var.set(val)
             _auto_save()
             
-        slider = tk.Scale(op_frame, from_=10, to=100, orient="horizontal", variable=opacity_var, command=on_opacity_slide,
-                          bg="#111111", fg="#a1a1aa", troughcolor="#27272a", highlightthickness=0, length=120, showvalue=False)
+        slider = ModernSlider(op_frame, width=120, height=30, bg="#111111", trough="#27272a", slider="#3b82f6", 
+                              command=on_opacity_slide, initial=opacity_var.get())
         slider.pack(side="left", padx=(0, 5))
         
         lbl_op = tk.Label(op_frame, textvariable=opacity_var, bg="#27272a", fg="white", width=4, font=("Segoe UI", 9, "bold"))
@@ -349,8 +378,15 @@ class OverlayApp:
         create_toggle(fd, "Helltide",   ht_var,     1)
         create_toggle(fd, "Legion",     legion_var, 2)
         
-        # ── Hotkey Help ──
-        tk.Label(win, text="Tip: Press Ctrl + L to lock/unlock overlay", bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=20)
+        # ── Support & Hotkey ──
+        import webbrowser
+        def open_support(_): webbrowser.open("https://boosty.to/6i6")
+            
+        btn_support = tk.Label(win, text="❤️ Support", bg="#111111", fg="#ef4444", font=("Segoe UI", 10, "bold"), cursor="hand2")
+        btn_support.pack(side="bottom", pady=(0, 15))
+        btn_support.bind("<Button-1>", open_support)
+        
+        tk.Label(win, text="Tip: Press Ctrl + L to lock/unlock overlay", bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=(15, 5))
 
     # ── Auto-hide ───────────────────────────────
     def _auto_hide_loop(self):
