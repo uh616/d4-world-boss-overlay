@@ -53,9 +53,12 @@ A **sound alert** plays automatically **before** the World Boss spawns (customiz
 - **Legion Events**: Tracks the next Legion event.
 - **Always on Top**: Transparent, borderless window that stays above Diablo 4.
 - **Settings Menu**: Click the ⚙ icon to customize the overlay:
-  - Select custom themes (Crimson, Gold, Neon Blue, Poison, Amethyst, Darkness).
-  - Set custom alert times (1, 5, 10, or 15 minutes before the boss).
-  - Auto-hide when Diablo 4 is closed.
+  - **Themes**: Choose between different visual styles (Crimson, Gold, Neon Blue, etc.)
+  - **Opacity**: Adjust the transparency of the overlay (10% - 100%).
+  - **Display Toggles**: Choose exactly what you want to see. Hide World Boss, Helltide, or Legion timers if you don't need them.
+  - **Alert Time**: Set when the sound plays (1, 5, 10, or 15 minutes before the boss).
+  - **Auto-hide**: Automatically hides the overlay when Diablo 4 is closed.
+  - *Note: All settings are auto-saved instantly!*
 - **Click-through Mode**: Press `Ctrl + L` to lock the overlay and make clicks pass through it.
 - **Audio Alerts**: Plays a sound before the World Boss spawns.
 - **Custom Sounds**: Place your own `alert.wav` next to the `.exe` to use a custom sound!
