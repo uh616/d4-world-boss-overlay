@@ -66,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.4"
+VERSION     = "1.3.5"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -168,10 +168,6 @@ class OverlayApp:
         self.sep_2    = self.cv.create_text(0, H // 2, text="║", anchor="center", font=font_main, fill=self.col_dim)
         self.lg_item  = self.cv.create_text(0, H // 2, text="LG: ...", anchor="w", font=font_main)
 
-        # Update button
-        self.update_btn = self.cv.create_text(0, H // 2, text="↑", anchor="center", font=font_icon, fill=self.col_update, state="hidden")
-        self.cv.tag_bind(self.update_btn, "<Button-1>", self._on_update_click)
-        
         # Settings button
         self.settings_btn = self.cv.create_text(0, H // 2, text="⚙", anchor="center", font=font_icon, fill=self.col_dim, activefill="#ffffff")
         self.cv.tag_bind(self.settings_btn, "<Button-1>", self._open_settings)
@@ -463,10 +459,6 @@ class OverlayApp:
             self.cv.coords(self.lg_item, x, H // 2)
             x += (lg_bbox[2] - lg_bbox[0]) + HPAD
 
-        upd_x = None
-        if self.update_tag:
-            upd_x = x + 10; x += BTN_W + HPAD
-
         if self.logo_img:
             logo_left = x; logo_cx = x + self.LOGO_BOX_W // 2; x += self.LOGO_BOX_W + HPAD
 
@@ -478,12 +470,6 @@ class OverlayApp:
         self.cv.coords(self.settings_btn, set_x, H // 2)
         self.cv.coords(self.close_btn, close_x, H // 2)
         self.cv.coords(self.lock_indicator, close_x, H // 2) # Shows in place of close btn when locked
-
-        if upd_x is not None:
-            self.cv.coords(self.update_btn, upd_x, H // 2)
-            self.cv.itemconfig(self.update_btn, state="normal")
-        else:
-            self.cv.itemconfig(self.update_btn, state="hidden")
 
         if self.logo_img:
             self.cv.coords(self.logo_border_id, logo_left, 4, logo_left + self.LOGO_BOX_W, H - 4)
@@ -545,7 +531,7 @@ class OverlayApp:
 
     # ── Auto-update ─────────────────────────────
     def _update_check_loop(self):
-        time.sleep(5)
+        time.sleep(1)
         while True:
             self._check_update()
             time.sleep(3600)
@@ -557,12 +543,12 @@ class OverlayApp:
             tag  = data.get("tag_name", "")
             if tag and _version_tuple(tag) > _version_tuple(VERSION):
                 self.update_tag = tag
+                self.root.after(0, self._prompt_update, tag)
         except: pass
 
-    def _on_update_click(self, _=None):
-        if not self.update_tag or self.locked: return
-        tag = self.update_tag
-        ans = msgbox.askyesno("Update", f"Update to {tag}?", parent=self.root)
+    def _prompt_update(self, tag):
+        if self.locked: return
+        ans = msgbox.askyesno("Update Available", f"A new version of Diablo 4 Overlay is available! ({tag})\n\nWould you like to download and install it now?", parent=self.root)
         if ans:
             threading.Thread(target=self._do_update, args=(tag,), daemon=True).start()
 
@@ -580,7 +566,6 @@ class OverlayApp:
             exe_dir  = os.path.dirname(current_exe)
             tmp_path = os.path.join(exe_dir, "D4-Overlay_update.exe")
 
-            self.root.after(0, lambda: self.cv.itemconfig(self.update_btn, text="↓", fill="#facc15"))
             req = urllib.request.Request(dl_url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req) as resp, open(tmp_path, "wb") as f:
                 f.write(resp.read())
