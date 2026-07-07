@@ -3,7 +3,7 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'   # Triggers on any tag like v1.2.0, v1.3.0, etc.
+      - 'v*'   # Triggers on any tag like v2.0.0, v2.1.0, etc.
 
 permissions:
   contents: write   # Required to create GitHub Releases
@@ -24,7 +24,33 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build and Release with electron-builder
-        run: npx electron-builder --win --x64 --publish always
+      - name: Build exe
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "D4 Overlay ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## D4 Overlay ${{ github.ref_name }}
+
+            A lightweight always-on-top overlay for **Diablo 4** that shows live countdowns for World Boss, Helltide and Legion events — without ever leaving the game.
+
+            ### ⬇️ How to install
+            1. Download **`D4-Overlay-${{ github.ref_name }}.exe`** below
+            2. Run it — no installation needed, it's fully portable
+            3. If Windows Defender shows a warning, click **"More info" → "Run anyway"**
+
+            ### ✨ What's new in ${{ github.ref_name }}
+            - Completely rewritten on **Electron** — faster, smoother, more reliable
+            - **Auto-Hide**: overlay hides when you switch out of Diablo 4
+            - **Scale slider**: adjust overlay size from tiny to large
+            - **Volume control**: set alert volume independently
+            - **Fully customizable hotkeys** (works regardless of keyboard layout)
+            - **Mini Mode**: click the logo to collapse to icon-only
+            - Background retained when overlay is locked (click-through mode)
+          files: dist/D4 Overlay ${{ github.ref_name }}.exe
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
