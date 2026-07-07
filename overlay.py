@@ -66,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.6"
+VERSION     = "1.4.0"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -88,6 +88,41 @@ HELLTIDE_DURATION = 55 * 60
 GWL_EXSTYLE = -20
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_LAYERED = 0x00080000
+
+STRINGS = {
+    "en": {
+        "settings_title": "⚙ Settings",
+        "alert_time":     "Alert Time:",
+        "mins":           "mins",
+        "sound":          "Sound Alerts",
+        "auto_hide":      "Auto-hide on focus",
+        "theme":          "Theme:",
+        "opacity":        "Opacity:",
+        "display":        "Display",
+        "world_boss":     "World Boss",
+        "helltide":       "Helltide",
+        "legion":         "Legion",
+        "language":       "Language:",
+        "tip":            "Tip: Press Ctrl + L to lock/unlock overlay",
+        "support":        "❤️ Support",
+    },
+    "ru": {
+        "settings_title": "⚙ Настройки",
+        "alert_time":     "Оповещение:",
+        "mins":           "мин",
+        "sound":          "Звук",
+        "auto_hide":      "Авто-скрытие",
+        "theme":          "Тема:",
+        "opacity":        "Прозрачность:",
+        "display":        "Отображение",
+        "world_boss":     "World Boss",
+        "helltide":       "Helltide",
+        "legion":         "Legion",
+        "language":       "Язык:",
+        "tip":            "Совет: Ctrl + L — заблокировать оверлей",
+        "support":        "❤️ Поддержать",
+    }
+}
 
 THEMES = {
     "Default Crimson": {"wb": "#ffcc00", "active": "#ef4444", "idle": "#a1a1aa", "border": "#8b0000"},
@@ -116,7 +151,10 @@ class OverlayApp:
             "show_boss": True,
             "show_helltide": True,
             "show_legion": True,
-            "opacity": 0.9
+            "opacity": 0.9,
+            "pos_x": 20,
+            "pos_y": 20,
+            "language": "en",
         }
         self._load_config()
 
@@ -128,6 +166,7 @@ class OverlayApp:
         self.update_tag     = None
         self.locked         = False
         self.is_hidden      = False
+        self.mini_mode      = False
         self._drag_x = self._drag_y = 0
         self.W = 400
 
@@ -149,7 +188,9 @@ class OverlayApp:
         self.LOGO_BOX_W = (LOGO_SIZE + 8) if self.logo_img else 0
 
         # ── Window setup ─────────────────────────
-        self.root.geometry(f"{self.W}x{H}+20+20")
+        px = self.config.get("pos_x", 20)
+        py = self.config.get("pos_y", 20)
+        self.root.geometry(f"{self.W}x{H}+{px}+{py}")
         self.root.config(bg=self.transparent)
         self.root.wm_attributes("-transparentcolor", self.transparent)
 
@@ -178,6 +219,8 @@ class OverlayApp:
         if self.logo_img:
             self.logo_border_id = self.cv.create_rectangle(0, 4, LOGO_SIZE + 8, H - 4, fill="#111111", width=1)
             self.logo_img_id = self.cv.create_image(0, H // 2, image=self.logo_img, anchor="center")
+            self.cv.tag_bind(self.logo_img_id,    "<Button-1>", self._toggle_mini)
+            self.cv.tag_bind(self.logo_border_id, "<Button-1>", self._toggle_mini)
 
         # Close button
         self.close_btn = self.cv.create_text(0, H // 2, text="✕", anchor="center", font=font_icon, fill=self.col_dim, activefill="#ef4444")
@@ -225,7 +268,6 @@ class OverlayApp:
         self._relayout() # forces redraw with new colors in tick
 
     # ── Settings UI ─────────────────────────────
-    # ── Settings UI ─────────────────────────────
     def _open_settings(self, _=None):
         if self.locked: return
         if hasattr(self, "settings_win") and self.settings_win.winfo_exists():
@@ -235,7 +277,7 @@ class OverlayApp:
         win = tk.Toplevel(self.root)
         self.settings_win = win
         win.title("Overlay Settings")
-        win.geometry("350x510")
+        win.geometry("350x545")
         win.resizable(False, False)
         win.configure(bg="#111111")
         win.wm_attributes("-topmost", True)
@@ -243,6 +285,8 @@ class OverlayApp:
         if self.logo_img:
             win.iconphoto(False, self.logo_img)
         
+        s = STRINGS.get(self.config.get("language", "en"), STRINGS["en"])
+
         # Helper to auto-save and apply
         def _auto_save():
             self.config["alert_minutes"]  = alert_var.get()
@@ -253,6 +297,7 @@ class OverlayApp:
             self.config["show_helltide"]  = ht_var.get()
             self.config["show_legion"]    = legion_var.get()
             self.config["opacity"]        = opacity_var.get() / 100.0
+            self.config["language"]       = lang_var.get()
             
             self._save_config()
             self._apply_theme()
@@ -263,14 +308,14 @@ class OverlayApp:
                 threading.Thread(target=self._auto_hide_loop, daemon=True).start()
                 
         # Header
-        tk.Label(win, text="⚙ Settings", font=("Segoe UI", 16, "bold"), bg="#111111", fg="#ffffff").pack(pady=(20, 10))
+        tk.Label(win, text=s["settings_title"], font=("Segoe UI", 16, "bold"), bg="#111111", fg="#ffffff").pack(pady=(20, 10))
 
         # Container
         f = tk.Frame(win, bg="#111111")
         f.pack(fill="x", padx=30)
         
         # ── Alert Time (Custom Spinner) ──
-        tk.Label(f, text="Alert Time:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=8)
+        tk.Label(f, text=s["alert_time"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=8)
         
         alert_frame = tk.Frame(f, bg="#111111")
         alert_frame.grid(row=0, column=1, columnspan=2, sticky="e")
@@ -284,14 +329,14 @@ class OverlayApp:
             idx = valid_times.index(alert_var.get())
             new_idx = (idx + delta) % len(valid_times)
             alert_var.set(valid_times[new_idx])
-            lbl_alert.config(text=f"{alert_var.get()} mins")
+            lbl_alert.config(text=f"{alert_var.get()} {s['mins']}")
             _auto_save()
 
         btn_minus = tk.Label(alert_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
         btn_minus.pack(side="left", padx=5)
         btn_minus.bind("<Button-1>", lambda _: change_alert(-1))
         
-        lbl_alert = tk.Label(alert_frame, text=f"{alert_var.get()} mins", bg="#27272a", fg="white", width=8, font=("Segoe UI", 10, "bold"))
+        lbl_alert = tk.Label(alert_frame, text=f"{alert_var.get()} {s['mins']}", bg="#27272a", fg="white", width=8, font=("Segoe UI", 10, "bold"))
         lbl_alert.pack(side="left")
         
         btn_plus = tk.Label(alert_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
@@ -313,11 +358,11 @@ class OverlayApp:
                 _auto_save()
             btn.bind("<Button-1>", toggle)
 
-        create_toggle(f, "Sound Alerts", sound_var, 1)
-        create_toggle(f, "Auto-hide on exit", hide_var, 2)
+        create_toggle(f, s["sound"], sound_var, 1)
+        create_toggle(f, s["auto_hide"], hide_var, 2)
 
         # ── Theme (Custom Selector) ──
-        tk.Label(f, text="Theme:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=3, column=0, sticky="w", pady=8)
+        tk.Label(f, text=s["theme"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=3, column=0, sticky="w", pady=8)
         
         theme_frame = tk.Frame(f, bg="#111111")
         theme_frame.grid(row=3, column=1, columnspan=2, sticky="e")
@@ -346,7 +391,7 @@ class OverlayApp:
         btn_t_plus.bind("<Button-1>", lambda _: change_theme(1))
         
         # ── Opacity (Slider) ──
-        tk.Label(f, text="Opacity:", bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=4, column=0, sticky="w", pady=8)
+        tk.Label(f, text=s["opacity"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=4, column=0, sticky="w", pady=8)
         
         op_frame = tk.Frame(f, bg="#111111")
         op_frame.grid(row=4, column=1, columnspan=2, sticky="e")
@@ -365,10 +410,40 @@ class OverlayApp:
         lbl_op.pack(side="left")
         tk.Label(op_frame, text="%", bg="#111111", fg="white", font=("Segoe UI", 9, "bold")).pack(side="left")
 
+        # ── Language (Custom Selector) ──
+        tk.Label(f, text=s["language"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=5, column=0, sticky="w", pady=8)
+        
+        lang_frame = tk.Frame(f, bg="#111111")
+        lang_frame.grid(row=5, column=1, columnspan=2, sticky="e")
+        
+        lang_var = tk.StringVar(value=self.config.get("language", "en"))
+        langs_list = ["en", "ru"]
+        lang_labels = {"en": "English", "ru": "Русский"}
+        if lang_var.get() not in langs_list:
+            lang_var.set("en")
+            
+        def change_lang(delta):
+            idx = langs_list.index(lang_var.get())
+            new_idx = (idx + delta) % len(langs_list)
+            lang_var.set(langs_list[new_idx])
+            lbl_lang.config(text=lang_labels[lang_var.get()])
+            _auto_save()
+
+        btn_l_minus = tk.Label(lang_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_l_minus.pack(side="left", padx=5)
+        btn_l_minus.bind("<Button-1>", lambda _: change_lang(-1))
+        
+        lbl_lang = tk.Label(lang_frame, text=lang_labels[lang_var.get()], bg="#27272a", fg="white", width=10, font=("Segoe UI", 10, "bold"))
+        lbl_lang.pack(side="left")
+        
+        btn_l_plus = tk.Label(lang_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
+        btn_l_plus.pack(side="left", padx=5)
+        btn_l_plus.bind("<Button-1>", lambda _: change_lang(1))
+
         # ── Display section ──
         sep_line = tk.Frame(win, bg="#27272a", height=1)
         sep_line.pack(fill="x", padx=30, pady=(12, 0))
-        tk.Label(win, text="Display", bg="#111111", fg="#71717a", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=30, pady=(4, 0))
+        tk.Label(win, text=s["display"], bg="#111111", fg="#71717a", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=30, pady=(4, 0))
 
         fd = tk.Frame(win, bg="#111111")
         fd.pack(fill="x", padx=30)
@@ -377,19 +452,19 @@ class OverlayApp:
         ht_var     = tk.BooleanVar(value=self.config.get("show_helltide", True))
         legion_var = tk.BooleanVar(value=self.config.get("show_legion",   True))
 
-        create_toggle(fd, "World Boss", boss_var,   0)
-        create_toggle(fd, "Helltide",   ht_var,     1)
-        create_toggle(fd, "Legion",     legion_var, 2)
+        create_toggle(fd, s["world_boss"], boss_var,   0)
+        create_toggle(fd, s["helltide"],   ht_var,     1)
+        create_toggle(fd, s["legion"],     legion_var, 2)
         
         # ── Support & Hotkey ──
         import webbrowser
         def open_support(_): webbrowser.open("https://boosty.to/6i6")
             
-        btn_support = tk.Label(win, text="❤️ Support", bg="#111111", fg="#ef4444", font=("Segoe UI", 10, "bold"), cursor="hand2")
+        btn_support = tk.Label(win, text=s["support"], bg="#111111", fg="#ef4444", font=("Segoe UI", 10, "bold"), cursor="hand2")
         btn_support.pack(side="bottom", pady=(0, 15))
         btn_support.bind("<Button-1>", open_support)
         
-        tk.Label(win, text="Tip: Press Ctrl + L to lock/unlock overlay", bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=(15, 5))
+        tk.Label(win, text=s["tip"], bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=(15, 5))
 
     # ── Auto-hide ───────────────────────────────
     def _auto_hide_loop(self):
@@ -441,12 +516,14 @@ class OverlayApp:
         show_helltide = self.config.get("show_helltide", True)
         show_legion   = self.config.get("show_legion", True)
 
+        mini = self.mini_mode
+
         # Show/hide items
         self.cv.itemconfig(self.wb_item,  state="normal" if show_boss     else "hidden")
         self.cv.itemconfig(self.ht_item,  state="normal" if show_helltide else "hidden")
         self.cv.itemconfig(self.lg_item,  state="normal" if show_legion   else "hidden")
-        self.cv.itemconfig(self.sep_1,    state="normal" if (show_boss and show_helltide) else "hidden")
-        self.cv.itemconfig(self.sep_2,    state="normal" if (show_helltide and show_legion) or (show_boss and show_legion and not show_helltide) else "hidden")
+        self.cv.itemconfig(self.sep_1,    state="normal" if (show_boss and show_helltide and not mini) else "hidden")
+        self.cv.itemconfig(self.sep_2,    state="normal" if ((show_helltide and show_legion) or (show_boss and show_legion and not show_helltide)) and not mini else "hidden")
 
         wb_bbox = self.cv.bbox(self.wb_item) if show_boss else None
         ht_bbox = self.cv.bbox(self.ht_item) if show_helltide else None
@@ -506,6 +583,9 @@ class OverlayApp:
         self._drag_x, self._drag_y = e.x, e.y
 
     def _drag_stop(self, e):
+        self.config["pos_x"] = self.root.winfo_x()
+        self.config["pos_y"] = self.root.winfo_y()
+        self._save_config()
         self._drag_x = self._drag_y = 0
 
     def _drag_move(self, e):
@@ -513,6 +593,10 @@ class OverlayApp:
             x = self.root.winfo_x() + (e.x - self._drag_x)
             y = self.root.winfo_y() + (e.y - self._drag_y)
             self.root.geometry(f"+{x}+{y}")
+
+    def _toggle_mini(self, _=None):
+        if self.locked: return
+        self.mini_mode = not self.mini_mode
 
     def _quit(self, _=None):
         if not self.locked:
@@ -614,17 +698,22 @@ class OverlayApp:
             if self.next_boss:
                 left = int(self.next_boss["timestamp"] - now)
                 if left > 0:
-                    h, m, s = left // 3600, (left % 3600) // 60, left % 60
-                    names = list({z["boss"] for z in self.next_boss.get("zone", []) if "boss" in z})
-                    if not names: names = [self.next_boss.get("boss", "World Boss")]
-                    self.cv.itemconfig(self.wb_item, text=" & ".join(names) + f"  {h:02d}:{m:02d}:{s:02d}", fill=t["wb"])
+                    h, rem = left // 3600, left % 3600
+                    m, sec = rem // 60, rem % 60
+                    if self.mini_mode:
+                        total_m = left // 60
+                        self.cv.itemconfig(self.wb_item, text=f"👹 {total_m:02d}:{sec:02d}", fill=t["wb"])
+                    else:
+                        names = list({z["boss"] for z in self.next_boss.get("zone", []) if "boss" in z})
+                        if not names: names = [self.next_boss.get("boss", "World Boss")]
+                        self.cv.itemconfig(self.wb_item, text=" & ".join(names) + f"  {h:02d}:{m:02d}:{sec:02d}", fill=t["wb"])
                     if left <= self.config["alert_minutes"] * 60 and self.alerted_id != self.next_boss["id"]:
                         self._play_sound()
                         self.alerted_id = self.next_boss["id"]
                 else:
-                    self.cv.itemconfig(self.wb_item, text="⚔  World Boss Active!", fill=t["active"])
+                    self.cv.itemconfig(self.wb_item, text="⚔" if self.mini_mode else "⚔  World Boss Active!", fill=t["active"])
             else:
-                self.cv.itemconfig(self.wb_item, text="WB: connecting...", fill=t["idle"])
+                self.cv.itemconfig(self.wb_item, text="👹 ..." if self.mini_mode else "WB: connecting...", fill=t["idle"])
 
         # Helltide
         if self.config.get("show_helltide", True):
@@ -633,25 +722,28 @@ class OverlayApp:
                 ht_end   = ht_start + HELLTIDE_DURATION
                 if now < ht_start:
                     left = int(ht_start - now)
-                    self.cv.itemconfig(self.ht_item, text=f"HT in {left//60:02d}:{left%60:02d}", fill=t["idle"])
+                    txt = f"🔥 {left//60:02d}:{left%60:02d}" if self.mini_mode else f"HT in {left//60:02d}:{left%60:02d}"
+                    self.cv.itemconfig(self.ht_item, text=txt, fill=t["idle"])
                 elif now < ht_end:
                     left = int(ht_end - now)
-                    self.cv.itemconfig(self.ht_item, text=f"HT: {left//60:02d}:{left%60:02d}", fill=t["active"])
+                    txt = f"🔥 {left//60:02d}:{left%60:02d}" if self.mini_mode else f"HT: {left//60:02d}:{left%60:02d}"
+                    self.cv.itemconfig(self.ht_item, text=txt, fill=t["active"])
                 else:
-                    self.cv.itemconfig(self.ht_item, text="HT starting...", fill=t["idle"])
+                    self.cv.itemconfig(self.ht_item, text="🔥 ..." if self.mini_mode else "HT starting...", fill=t["idle"])
             else:
-                self.cv.itemconfig(self.ht_item, text="HT: ...", fill=t["idle"])
+                self.cv.itemconfig(self.ht_item, text="🔥 ..." if self.mini_mode else "HT: ...", fill=t["idle"])
 
         # Legion
         if self.config.get("show_legion", True):
             if self.next_legion:
                 left = int(self.next_legion["timestamp"] - now)
                 if left > 0:
-                    self.cv.itemconfig(self.lg_item, text=f"LG: {left//60:02d}:{left%60:02d}", fill=t["idle"])
+                    txt = f"⚡ {left//60:02d}:{left%60:02d}" if self.mini_mode else f"LG: {left//60:02d}:{left%60:02d}"
+                    self.cv.itemconfig(self.lg_item, text=txt, fill=t["idle"])
                 else:
-                    self.cv.itemconfig(self.lg_item, text="⚔ LG Active!", fill=t["active"])
+                    self.cv.itemconfig(self.lg_item, text="⚡" if self.mini_mode else "⚔ LG Active!", fill=t["active"])
             else:
-                self.cv.itemconfig(self.lg_item, text="LG: ...", fill=t["idle"])
+                self.cv.itemconfig(self.lg_item, text="⚡ ..." if self.mini_mode else "LG: ...", fill=t["idle"])
 
         self._relayout()
         self.root.after(1000, self._tick)
