@@ -17,6 +17,7 @@ config.json
 # Temporary / debug files
 error.log
 *.log
+*.mp3
 
 # Virtual environment
 .env
