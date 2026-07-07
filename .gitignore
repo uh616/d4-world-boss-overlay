@@ -1,13 +1,28 @@
 __pycache__/
 *.pyc
 *.pyo
-build/
-dist/
-*.spec
-.env
+*.pyd
 
-# Release archives
-*.zip
-*.spec
+# Build artifacts
 build/
 dist/
+*.spec
+
+# Release archives (keep locally, don't commit)
+*.zip
+
+# User config (generated at runtime, do not share)
+config.json
+
+# Temporary / debug files
+error.log
+*.log
+
+# Virtual environment
+.env
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db

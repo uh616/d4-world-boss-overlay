@@ -66,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.4.0"
+VERSION     = "1.5.0"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -94,7 +94,7 @@ STRINGS = {
         "settings_title": "⚙ Settings",
         "alert_time":     "Alert Time:",
         "mins":           "mins",
-        "sound":          "Sound Alerts",
+        "sound":          "Sound Alerts:",
         "auto_hide":      "Auto-hide on focus",
         "theme":          "Theme:",
         "opacity":        "Opacity:",
@@ -103,14 +103,21 @@ STRINGS = {
         "helltide":       "Helltide",
         "legion":         "Legion",
         "language":       "Language:",
-        "tip":            "Tip: Press Ctrl + L to lock/unlock overlay",
+        "custom_sound":   "Custom Sound:",
+        "browse":         "Browse...",
+        "volume":         "Volume:",
+        "test":           "Test",
+        "hotkey":         "Lock Hotkey:",
+        "bind_click":     "Click to Bind",
+        "press_key":      "Press any key...",
+        "tip":            "Tip: Use Lock Hotkey to enable click-through",
         "support":        "❤️ Support",
     },
     "ru": {
         "settings_title": "⚙ Настройки",
         "alert_time":     "Оповещение:",
         "mins":           "мин",
-        "sound":          "Звук",
+        "sound":          "Звук (за Х мин):",
         "auto_hide":      "Авто-скрытие",
         "theme":          "Тема:",
         "opacity":        "Прозрачность:",
@@ -119,7 +126,14 @@ STRINGS = {
         "helltide":       "Helltide",
         "legion":         "Legion",
         "language":       "Язык:",
-        "tip":            "Совет: Ctrl + L — заблокировать оверлей",
+        "custom_sound":   "Свой звук:",
+        "browse":         "Выбрать...",
+        "volume":         "Громкость:",
+        "test":           "Тест",
+        "hotkey":         "Блок оверлея:",
+        "bind_click":     "Изменить",
+        "press_key":      "Нажмите клавишу...",
+        "tip":            "Совет: Заблокируйте окно для кликов сквозь",
         "support":        "❤️ Поддержать",
     }
 }
@@ -145,7 +159,12 @@ class OverlayApp:
         # ── Load Config ──────────────────────────
         self.config = {
             "alert_minutes": 5,
-            "sound_enabled": True,
+            "sound_wb": True,
+            "sound_ht": False,
+            "sound_legion": False,
+            "sound_file": "",
+            "sound_volume": 100,
+            "hotkey": "ctrl+l",
             "auto_hide": False,
             "theme": "Default Crimson",
             "show_boss": True,
@@ -157,12 +176,17 @@ class OverlayApp:
             "language": "en",
         }
         self._load_config()
+        if "sound_enabled" in self.config:
+            self.config["sound_wb"] = self.config.pop("sound_enabled")
+            self._save_config()
 
         # ── State ────────────────────────────────
         self.next_boss      = None
         self.next_helltide  = None
         self.next_legion    = None
         self.alerted_id     = None
+        self.alerted_ht_id  = None
+        self.alerted_lg_id  = None
         self.update_tag     = None
         self.locked         = False
         self.is_hidden      = False
@@ -236,7 +260,7 @@ class OverlayApp:
         self._apply_theme()
 
         # Keyboard Hook for Lock Mode
-        keyboard.add_hotkey('ctrl+l', self._toggle_lock)
+        keyboard.add_hotkey(self.config.get("hotkey", "ctrl+l"), self._toggle_lock)
 
         threading.Thread(target=self._fetch_loop, daemon=True).start()
         threading.Thread(target=self._update_check_loop, daemon=True).start()
@@ -273,198 +297,320 @@ class OverlayApp:
         if hasattr(self, "settings_win") and self.settings_win.winfo_exists():
             self.settings_win.lift()
             return
-            
+
+        BG    = "#0d0d0f"
+        CARD  = "#1c1c1e"
+        CARD2 = "#2c2c2e"
+        SEP   = "#3a3a3c"
+        FG    = "#ffffff"
+        FG2   = "#ebebf5"
+        FG3   = "#8e8e93"
+        ACCENT= "#0a84ff"
+        GREEN = "#30d158"
+        ORANGE= "#ff9f0a"
+        RED   = "#ff453a"
+        import tkinter.font as tkfont
+        FONT  = "SF Pro Display" if "SF Pro Display" in tkfont.families() else "Segoe UI"
+
         win = tk.Toplevel(self.root)
         self.settings_win = win
-        win.title("Overlay Settings")
-        win.geometry("350x545")
+        win.title("Settings")
+        win.geometry("360x780")
         win.resizable(False, False)
-        win.configure(bg="#111111")
+        win.configure(bg=BG)
         win.wm_attributes("-topmost", True)
-        
+
         if self.logo_img:
             win.iconphoto(False, self.logo_img)
-        
+
+        # Apply Windows Acrylic blur
+        try:
+            win.update_idletasks()
+            hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
+            if hwnd == 0:
+                hwnd = win.winfo_id()
+
+            class ACCENTPOLICY(ctypes.Structure):
+                _fields_ = [("AccentState", ctypes.c_uint), ("AccentFlags", ctypes.c_uint),
+                             ("GradientColor", ctypes.c_uint), ("AnimationId", ctypes.c_uint)]
+            class WCAD(ctypes.Structure):
+                _fields_ = [("Attribute", ctypes.c_int),
+                             ("Data", ctypes.POINTER(ctypes.c_int)), ("SizeOfData", ctypes.c_size_t)]
+            policy = ACCENTPOLICY()
+            policy.AccentState = 4
+            policy.GradientColor = 0xCC0d0d0f
+            data = WCAD()
+            data.Attribute = 19
+            data.Data = ctypes.cast(ctypes.pointer(policy), ctypes.POINTER(ctypes.c_int))
+            data.SizeOfData = ctypes.sizeof(policy)
+            ctypes.windll.user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+        except Exception as e:
+            pass
+
         s = STRINGS.get(self.config.get("language", "en"), STRINGS["en"])
 
-        # Helper to auto-save and apply
+        alert_var    = tk.IntVar(value=self.config.get("alert_minutes", 5))
+        sound_wb_var = tk.BooleanVar(value=self.config.get("sound_wb", True))
+        sound_ht_var = tk.BooleanVar(value=self.config.get("sound_ht", False))
+        sound_lg_var = tk.BooleanVar(value=self.config.get("sound_legion", False))
+        hide_var     = tk.BooleanVar(value=self.config.get("auto_hide", False))
+        boss_var     = tk.BooleanVar(value=self.config.get("show_boss", True))
+        ht_var       = tk.BooleanVar(value=self.config.get("show_helltide", True))
+        legion_var   = tk.BooleanVar(value=self.config.get("show_legion", True))
+        opacity_var  = tk.IntVar(value=int(self.config.get("opacity", 0.9) * 100))
+        vol_var      = tk.IntVar(value=self.config.get("sound_volume", 100))
+        theme_var    = tk.StringVar(value=self.config.get("theme", "Default Crimson"))
+        lang_var     = tk.StringVar(value=self.config.get("language", "en"))
+        valid_times  = [1, 5, 10, 15]
+        if alert_var.get() not in valid_times: alert_var.set(5)
+        themes_list  = list(THEMES.keys())
+        langs_list   = ["en", "ru"]
+        lang_labels  = {"en": "English", "ru": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"}
+
         def _auto_save():
-            self.config["alert_minutes"]  = alert_var.get()
-            self.config["sound_enabled"]  = sound_var.get()
-            self.config["auto_hide"]      = hide_var.get()
-            self.config["theme"]          = theme_var.get()
-            self.config["show_boss"]      = boss_var.get()
-            self.config["show_helltide"]  = ht_var.get()
-            self.config["show_legion"]    = legion_var.get()
-            self.config["opacity"]        = opacity_var.get() / 100.0
-            self.config["language"]       = lang_var.get()
-            
+            self.config["alert_minutes"] = alert_var.get()
+            self.config["sound_wb"]      = sound_wb_var.get()
+            self.config["sound_ht"]      = sound_ht_var.get()
+            self.config["sound_legion"]  = sound_lg_var.get()
+            self.config["auto_hide"]     = hide_var.get()
+            self.config["theme"]         = theme_var.get()
+            self.config["show_boss"]     = boss_var.get()
+            self.config["show_helltide"] = ht_var.get()
+            self.config["show_legion"]   = legion_var.get()
+            self.config["opacity"]       = opacity_var.get() / 100.0
+            self.config["language"]      = lang_var.get()
             self._save_config()
             self._apply_theme()
-            
-            # Restart auto-hide thread if just enabled
             if self.config["auto_hide"] and not getattr(self, "_auto_hide_running", False):
                 self._auto_hide_running = True
                 threading.Thread(target=self._auto_hide_loop, daemon=True).start()
-                
-        # Header
-        tk.Label(win, text=s["settings_title"], font=("Segoe UI", 16, "bold"), bg="#111111", fg="#ffffff").pack(pady=(20, 10))
 
-        # Container
-        f = tk.Frame(win, bg="#111111")
-        f.pack(fill="x", padx=30)
-        
-        # ── Alert Time (Custom Spinner) ──
-        tk.Label(f, text=s["alert_time"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=8)
-        
-        alert_frame = tk.Frame(f, bg="#111111")
-        alert_frame.grid(row=0, column=1, columnspan=2, sticky="e")
-        
-        alert_var = tk.IntVar(value=self.config.get("alert_minutes", 5))
-        valid_times = [1, 5, 10, 15]
-        if alert_var.get() not in valid_times:
-            alert_var.set(5)
-            
-        def change_alert(delta):
+        # ── iOS helpers ──────────────────────────────────
+        def section_label(parent, text):
+            if not text:
+                tk.Frame(parent, bg=BG, height=6).pack()
+                return
+            tk.Label(parent, text=text.upper(), font=(FONT, 8, "bold"), bg=BG, fg=FG3,
+                     anchor="w").pack(fill="x", padx=20, pady=(14, 4))
+
+        def card(parent):
+            f = tk.Frame(parent, bg=CARD, bd=0, highlightthickness=1, highlightbackground=SEP)
+            f.pack(fill="x", padx=16, pady=0)
+            return f
+
+        def row_frame(card_f, last=False):
+            r = tk.Frame(card_f, bg=CARD)
+            r.pack(fill="x")
+            if not last:
+                sep = tk.Frame(card_f, bg=SEP, height=1)
+                sep.pack(fill="x", padx=14)
+            return r
+
+        def ios_label(parent, text):
+            lbl = tk.Label(parent, text=text, font=(FONT, 11), bg=CARD, fg=FG2, anchor="w")
+            lbl.pack(side="left", padx=(16, 6), pady=13)
+            return lbl
+
+        def ios_toggle(parent, var):
+            TRACK_W, TRACK_H, KNOB_D = 44, 24, 20
+            c = tk.Canvas(parent, width=TRACK_W, height=TRACK_H, bg=CARD,
+                          highlightthickness=0, cursor="hand2")
+            c.pack(side="right", padx=(0, 14), pady=10)
+            def _draw():
+                c.delete("all")
+                color = GREEN if var.get() else SEP
+                r = TRACK_H // 2
+                c.create_arc(0, 0, TRACK_H, TRACK_H, start=90, extent=180, fill=color, outline=color)
+                c.create_arc(TRACK_W-TRACK_H, 0, TRACK_W, TRACK_H, start=270, extent=180, fill=color, outline=color)
+                c.create_rectangle(r, 0, TRACK_W-r, TRACK_H, fill=color, outline=color)
+                knob_x = TRACK_W-2-KNOB_D if var.get() else 2
+                c.create_oval(knob_x, 2, knob_x+KNOB_D, 2+KNOB_D, fill=FG, outline="")
+            def _toggle(e):
+                var.set(not var.get()); _draw(); _auto_save()
+            _draw()
+            c.bind("<Button-1>", _toggle)
+
+        # ── Scrollable container ─────────────────────────
+        outer = tk.Frame(win, bg=BG)
+        outer.pack(fill="both", expand=True)
+        canvas = tk.Canvas(outer, bg=BG, highlightthickness=0, bd=0)
+        sb = tk.Scrollbar(outer, orient="vertical", command=canvas.yview, bg=BG)
+        canvas.configure(yscrollcommand=sb.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        sf = tk.Frame(canvas, bg=BG)
+        sw = canvas.create_window((0, 0), window=sf, anchor="nw", width=360)
+        sf.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+        win.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+
+        # ─── HEADER ─────────────────────────────────────
+        tk.Label(sf, text="\u2699  Settings", font=(FONT, 20, "bold"), bg=BG, fg=FG).pack(pady=(22, 6))
+
+        # ─── NOTIFICATIONS ───────────────────────────────
+        section_label(sf, "Notifications")
+        c1 = card(sf)
+        r_alert = row_frame(c1)
+        ios_label(r_alert, s["alert_time"])
+        af = tk.Frame(r_alert, bg=CARD)
+        af.pack(side="right", padx=(0,14), pady=8)
+        def chg_alert(d):
             idx = valid_times.index(alert_var.get())
-            new_idx = (idx + delta) % len(valid_times)
-            alert_var.set(valid_times[new_idx])
-            lbl_alert.config(text=f"{alert_var.get()} {s['mins']}")
+            alert_var.set(valid_times[(idx+d) % len(valid_times)])
+            lbl_av.config(text=f"{alert_var.get()} {s['mins']}")
             _auto_save()
+        btn_al = tk.Label(af, text="\u2039", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_al.pack(side="left")
+        btn_al.bind("<Button-1>", lambda _: chg_alert(-1))
+        lbl_av = tk.Label(af, text=f"{alert_var.get()} {s['mins']}", font=(FONT,11,"bold"), bg=CARD2, fg=FG2, padx=10, pady=2)
+        lbl_av.pack(side="left", padx=4)
+        btn_ar = tk.Label(af, text="\u203a", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_ar.pack(side="left")
+        btn_ar.bind("<Button-1>", lambda _: chg_alert(1))
 
-        btn_minus = tk.Label(alert_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_minus.pack(side="left", padx=5)
-        btn_minus.bind("<Button-1>", lambda _: change_alert(-1))
-        
-        lbl_alert = tk.Label(alert_frame, text=f"{alert_var.get()} {s['mins']}", bg="#27272a", fg="white", width=8, font=("Segoe UI", 10, "bold"))
-        lbl_alert.pack(side="left")
-        
-        btn_plus = tk.Label(alert_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_plus.pack(side="left", padx=5)
-        btn_plus.bind("<Button-1>", lambda _: change_alert(1))
+        r_swb = row_frame(c1)
+        ios_label(r_swb, "\U0001f514 " + s["world_boss"])
+        ios_toggle(r_swb, sound_wb_var)
+        r_sht = row_frame(c1)
+        ios_label(r_sht, "\U0001f514 " + s["helltide"])
+        ios_toggle(r_sht, sound_ht_var)
+        r_slg = row_frame(c1, last=True)
+        ios_label(r_slg, "\U0001f514 " + s["legion"])
+        ios_toggle(r_slg, sound_lg_var)
 
-        # ── Toggles ──
-        sound_var = tk.BooleanVar(value=self.config.get("sound_enabled", True))
-        hide_var  = tk.BooleanVar(value=self.config.get("auto_hide", False))
+        # ─── AUDIO ───────────────────────────────────────
+        section_label(sf, "Audio")
+        c2 = card(sf)
+        r_sf = row_frame(c2)
+        ios_label(r_sf, s["custom_sound"])
+        def _pick_file(_):
+            fpath = filedialog.askopenfilename(filetypes=[("WAV files", "*.wav")], title="Select Alert Sound")
+            if fpath:
+                self.config["sound_file"] = fpath; self._save_config()
+                lbl_sfile.config(text="\u2713 Custom", fg=GREEN)
+            else:
+                self.config["sound_file"] = ""; self._save_config()
+                lbl_sfile.config(text=s["browse"], fg=FG3)
+        lbl_sfile = tk.Label(r_sf, text="\u2713 Custom" if self.config.get("sound_file") else s["browse"],
+                             font=(FONT,11), bg=CARD, fg=GREEN if self.config.get("sound_file") else FG3, cursor="hand2")
+        lbl_sfile.pack(side="right", padx=(0,4), pady=13)
+        lbl_sfile.bind("<Button-1>", _pick_file)
+        tk.Label(r_sf, text="\u203a", font=(FONT,14), bg=CARD, fg=FG3).pack(side="right", padx=(0,6))
 
-        def create_toggle(parent, text, var, row):
-            tk.Label(parent, text=text, bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=row, column=0, sticky="w", pady=6)
-            btn = tk.Label(parent, text="ON" if var.get() else "OFF", width=6, font=("Segoe UI", 9, "bold"),
-                           bg="#22c55e" if var.get() else "#3f3f46", fg="white", cursor="hand2")
-            btn.grid(row=row, column=1, columnspan=2, sticky="e")
-            def toggle(_):
-                var.set(not var.get())
-                btn.config(text="ON" if var.get() else "OFF", bg="#22c55e" if var.get() else "#3f3f46")
-                _auto_save()
-            btn.bind("<Button-1>", toggle)
+        r_test = row_frame(c2)
+        ios_label(r_test, "\u25b6  " + s["test"] + " sound")
+        def _test_sound(_): self._play_sound()
+        lbl_t = tk.Label(r_test, text=s["test"], font=(FONT,11,"bold"), bg=CARD, fg=ACCENT, cursor="hand2")
+        lbl_t.pack(side="right", padx=(0,4), pady=13)
+        lbl_t.bind("<Button-1>", _test_sound)
+        tk.Label(r_test, text="\u203a", font=(FONT,14), bg=CARD, fg=ACCENT).pack(side="right", padx=(0,6))
 
-        create_toggle(f, s["sound"], sound_var, 1)
-        create_toggle(f, s["auto_hide"], hide_var, 2)
+        r_vol = row_frame(c2, last=True)
+        ios_label(r_vol, "\U0001f50a " + s["volume"])
+        vf = tk.Frame(r_vol, bg=CARD)
+        vf.pack(side="right", padx=(0,14), pady=8)
+        def on_vol(val):
+            vol_var.set(val); self.config["sound_volume"] = val; self._save_config()
+            lbl_vv.config(text=f"{val}%")
+        sl_v = ModernSlider(vf, width=90, height=26, bg=CARD, trough=SEP,
+                            fill_color=ACCENT, slider=FG, command=on_vol, initial=vol_var.get())
+        sl_v.pack(side="left", padx=(0,4))
+        lbl_vv = tk.Label(vf, text=f"{vol_var.get()}%", font=(FONT,10,"bold"), bg=CARD, fg=FG3, width=4)
+        lbl_vv.pack(side="left")
 
-        # ── Theme (Custom Selector) ──
-        tk.Label(f, text=s["theme"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=3, column=0, sticky="w", pady=8)
-        
-        theme_frame = tk.Frame(f, bg="#111111")
-        theme_frame.grid(row=3, column=1, columnspan=2, sticky="e")
-        
-        theme_var = tk.StringVar(value=self.config.get("theme", "Default Crimson"))
-        themes_list = list(THEMES.keys())
-        if theme_var.get() not in themes_list:
-            theme_var.set(themes_list[0])
-            
-        def change_theme(delta):
-            idx = themes_list.index(theme_var.get())
-            new_idx = (idx + delta) % len(themes_list)
-            theme_var.set(themes_list[new_idx])
-            lbl_theme.config(text=theme_var.get())
-            _auto_save()
+        # ─── DISPLAY ─────────────────────────────────────
+        section_label(sf, s["display"])
+        c3 = card(sf)
+        r_b = row_frame(c3); ios_label(r_b, "\U0001f479 " + s["world_boss"]); ios_toggle(r_b, boss_var)
+        r_h = row_frame(c3); ios_label(r_h, "\U0001f525 " + s["helltide"]);   ios_toggle(r_h, ht_var)
+        r_l = row_frame(c3); ios_label(r_l, "\u26a1 " + s["legion"]);          ios_toggle(r_l, legion_var)
+        r_hd = row_frame(c3, last=True); ios_label(r_hd, "\U0001f441 " + s["auto_hide"]); ios_toggle(r_hd, hide_var)
 
-        btn_t_minus = tk.Label(theme_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_t_minus.pack(side="left", padx=5)
-        btn_t_minus.bind("<Button-1>", lambda _: change_theme(-1))
-        
-        lbl_theme = tk.Label(theme_frame, text=theme_var.get(), bg="#27272a", fg="white", width=14, font=("Segoe UI", 10, "bold"))
-        lbl_theme.pack(side="left")
-        
-        btn_t_plus = tk.Label(theme_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_t_plus.pack(side="left", padx=5)
-        btn_t_plus.bind("<Button-1>", lambda _: change_theme(1))
-        
-        # ── Opacity (Slider) ──
-        tk.Label(f, text=s["opacity"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=4, column=0, sticky="w", pady=8)
-        
-        op_frame = tk.Frame(f, bg="#111111")
-        op_frame.grid(row=4, column=1, columnspan=2, sticky="e")
-        
-        opacity_var = tk.IntVar(value=int(self.config.get("opacity", 0.9) * 100))
-        
-        def on_opacity_slide(val):
-            opacity_var.set(val)
-            _auto_save()
-            
-        slider = ModernSlider(op_frame, width=100, height=30, bg="#111111", trough="#27272a", fill_color="#3b82f6", slider="#ffffff", 
-                              command=on_opacity_slide, initial=opacity_var.get())
-        slider.pack(side="left", padx=(0, 2))
-        
-        lbl_op = tk.Label(op_frame, textvariable=opacity_var, bg="#27272a", fg="white", width=4, font=("Segoe UI", 9, "bold"))
-        lbl_op.pack(side="left")
-        tk.Label(op_frame, text="%", bg="#111111", fg="white", font=("Segoe UI", 9, "bold")).pack(side="left")
+        # ─── APPEARANCE ──────────────────────────────────
+        section_label(sf, "Appearance")
+        c4 = card(sf)
+        r_th = row_frame(c4)
+        ios_label(r_th, "\U0001f3a8 " + s["theme"])
+        thf = tk.Frame(r_th, bg=CARD)
+        thf.pack(side="right", padx=(0,14), pady=8)
+        def chg_theme(d):
+            theme_var.set(themes_list[(themes_list.index(theme_var.get())+d) % len(themes_list)])
+            lbl_tv.config(text=theme_var.get()); _auto_save()
+        btn_tl = tk.Label(thf, text="\u2039", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_tl.pack(side="left")
+        btn_tl.bind("<Button-1>", lambda _: chg_theme(-1))
+        lbl_tv = tk.Label(thf, text=theme_var.get(), font=(FONT,10,"bold"), bg=CARD2, fg=FG2, padx=8, pady=2)
+        lbl_tv.pack(side="left", padx=4)
+        btn_tr = tk.Label(thf, text="\u203a", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_tr.pack(side="left")
+        btn_tr.bind("<Button-1>", lambda _: chg_theme(1))
 
-        # ── Language (Custom Selector) ──
-        tk.Label(f, text=s["language"], bg="#111111", fg="#e4e4e7", font=("Segoe UI", 10)).grid(row=5, column=0, sticky="w", pady=8)
-        
-        lang_frame = tk.Frame(f, bg="#111111")
-        lang_frame.grid(row=5, column=1, columnspan=2, sticky="e")
-        
-        lang_var = tk.StringVar(value=self.config.get("language", "en"))
-        langs_list = ["en", "ru"]
-        lang_labels = {"en": "English", "ru": "Русский"}
-        if lang_var.get() not in langs_list:
-            lang_var.set("en")
-            
-        def change_lang(delta):
-            idx = langs_list.index(lang_var.get())
-            new_idx = (idx + delta) % len(langs_list)
-            lang_var.set(langs_list[new_idx])
-            lbl_lang.config(text=lang_labels[lang_var.get()])
-            _auto_save()
+        r_op = row_frame(c4)
+        ios_label(r_op, "\U0001f4a7 " + s["opacity"])
+        opf = tk.Frame(r_op, bg=CARD)
+        opf.pack(side="right", padx=(0,14), pady=8)
+        def on_op(val):
+            opacity_var.set(val); lbl_ov.config(text=f"{val}%"); _auto_save()
+        sl_op = ModernSlider(opf, width=90, height=26, bg=CARD, trough=SEP,
+                             fill_color=ORANGE, slider=FG, command=on_op, initial=opacity_var.get())
+        sl_op.pack(side="left", padx=(0,4))
+        lbl_ov = tk.Label(opf, text=f"{opacity_var.get()}%", font=(FONT,10,"bold"), bg=CARD, fg=FG3, width=4)
+        lbl_ov.pack(side="left")
 
-        btn_l_minus = tk.Label(lang_frame, text="◀", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_l_minus.pack(side="left", padx=5)
-        btn_l_minus.bind("<Button-1>", lambda _: change_lang(-1))
-        
-        lbl_lang = tk.Label(lang_frame, text=lang_labels[lang_var.get()], bg="#27272a", fg="white", width=10, font=("Segoe UI", 10, "bold"))
-        lbl_lang.pack(side="left")
-        
-        btn_l_plus = tk.Label(lang_frame, text="▶", bg="#111111", fg="#a1a1aa", font=("Segoe UI", 10), cursor="hand2")
-        btn_l_plus.pack(side="left", padx=5)
-        btn_l_plus.bind("<Button-1>", lambda _: change_lang(1))
+        r_lg = row_frame(c4, last=True)
+        ios_label(r_lg, "\U0001f310 " + s["language"])
+        lgf = tk.Frame(r_lg, bg=CARD)
+        lgf.pack(side="right", padx=(0,14), pady=8)
+        def chg_lang(d):
+            lang_var.set(langs_list[(langs_list.index(lang_var.get())+d) % len(langs_list)])
+            lbl_lv.config(text=lang_labels[lang_var.get()]); _auto_save()
+        btn_ll = tk.Label(lgf, text="\u2039", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_ll.pack(side="left")
+        btn_ll.bind("<Button-1>", lambda _: chg_lang(-1))
+        lbl_lv = tk.Label(lgf, text=lang_labels[lang_var.get()], font=(FONT,10,"bold"), bg=CARD2, fg=FG2, padx=8, pady=2)
+        lbl_lv.pack(side="left", padx=4)
+        btn_lr = tk.Label(lgf, text="\u203a", font=(FONT,18), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_lr.pack(side="left")
+        btn_lr.bind("<Button-1>", lambda _: chg_lang(1))
 
-        # ── Display section ──
-        sep_line = tk.Frame(win, bg="#27272a", height=1)
-        sep_line.pack(fill="x", padx=30, pady=(12, 0))
-        tk.Label(win, text=s["display"], bg="#111111", fg="#71717a", font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=30, pady=(4, 0))
+        # ─── HOTKEY ──────────────────────────────────────
+        section_label(sf, s["hotkey"].rstrip(":"))
+        c5 = card(sf)
+        r_hk = row_frame(c5, last=True)
+        ios_label(r_hk, "\u2328\ufe0f  " + s["hotkey"])
+        hkf = tk.Frame(r_hk, bg=CARD)
+        hkf.pack(side="right", padx=(0,14), pady=8)
+        lbl_hkv = tk.Label(hkf, text=self.config.get("hotkey", "ctrl+l").upper(),
+                            font=(FONT,10,"bold"), bg=CARD2, fg=FG2, padx=10, pady=3)
+        lbl_hkv.pack(side="left", padx=(0,6))
+        def _listen_hotkey(_):
+            lbl_hkv.config(text=s["press_key"], fg=ORANGE)
+            win.update()
+            try:
+                hk = keyboard.read_hotkey(suppress=False)
+                keyboard.remove_hotkey(self._toggle_lock)
+                self.config["hotkey"] = hk; self._save_config()
+                keyboard.add_hotkey(hk, self._toggle_lock)
+                lbl_hkv.config(text=hk.upper(), fg=FG2)
+            except: lbl_hkv.config(text="ERROR", fg=RED)
+        btn_hkb = tk.Label(hkf, text=s["bind_click"], font=(FONT,10), bg=CARD, fg=ACCENT, cursor="hand2")
+        btn_hkb.pack(side="left")
+        btn_hkb.bind("<Button-1>", _listen_hotkey)
 
-        fd = tk.Frame(win, bg="#111111")
-        fd.pack(fill="x", padx=30)
-
-        boss_var   = tk.BooleanVar(value=self.config.get("show_boss",     True))
-        ht_var     = tk.BooleanVar(value=self.config.get("show_helltide", True))
-        legion_var = tk.BooleanVar(value=self.config.get("show_legion",   True))
-
-        create_toggle(fd, s["world_boss"], boss_var,   0)
-        create_toggle(fd, s["helltide"],   ht_var,     1)
-        create_toggle(fd, s["legion"],     legion_var, 2)
-        
-        # ── Support & Hotkey ──
+        # ─── SUPPORT ─────────────────────────────────────
+        section_label(sf, "")
+        c6 = card(sf)
+        r_sup = row_frame(c6, last=True)
+        ios_label(r_sup, "\u2764\ufe0f  " + s["support"].replace("\u2764\ufe0f ", ""))
         import webbrowser
         def open_support(_): webbrowser.open("https://boosty.to/6i6")
-            
-        btn_support = tk.Label(win, text=s["support"], bg="#111111", fg="#ef4444", font=("Segoe UI", 10, "bold"), cursor="hand2")
-        btn_support.pack(side="bottom", pady=(0, 15))
-        btn_support.bind("<Button-1>", open_support)
-        
-        tk.Label(win, text=s["tip"], bg="#111111", fg="#94a3b8", font=("Segoe UI", 9)).pack(side="bottom", pady=(15, 5))
+        lbl_su = tk.Label(r_sup, text="\u203a", font=(FONT,16), bg=CARD, fg=RED, cursor="hand2")
+        lbl_su.pack(side="right", padx=(0,14), pady=13)
+        lbl_su.bind("<Button-1>", open_support)
+        r_sup.bind("<Button-1>", open_support)
+
+        tk.Label(sf, text=s["tip"], font=(FONT, 9), bg=BG, fg=FG3).pack(pady=(12, 24))
+
 
     # ── Auto-hide ───────────────────────────────
     def _auto_hide_loop(self):
@@ -681,9 +827,20 @@ class OverlayApp:
             msgbox.showerror("Update failed", str(e), parent=self.root)
 
     # ── Sound ───────────────────────────────────
+    def _set_volume(self, vol_percent):
+        try:
+            # Convert 0-100 to 0-0xFFFF
+            vol = int(0xFFFF * (vol_percent / 100))
+            ctypes.windll.winmm.waveOutSetVolume(None, (vol << 16) | vol)
+        except Exception as e:
+            print("Volume error:", e)
+
     def _play_sound(self):
-        if not self.config["sound_enabled"]: return
-        if os.path.exists(CUSTOM_SOUND):
+        self._set_volume(self.config.get("sound_volume", 100))
+        custom_file = self.config.get("sound_file", "")
+        if custom_file and os.path.exists(custom_file):
+            winsound.PlaySound(custom_file, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+        elif os.path.exists(CUSTOM_SOUND):
             winsound.PlaySound(CUSTOM_SOUND, winsound.SND_FILENAME | winsound.SND_ASYNC)
         else:
             winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
@@ -706,8 +863,11 @@ class OverlayApp:
                     else:
                         names = list({z["boss"] for z in self.next_boss.get("zone", []) if "boss" in z})
                         if not names: names = [self.next_boss.get("boss", "World Boss")]
-                        self.cv.itemconfig(self.wb_item, text=" & ".join(names) + f"  {h:02d}:{m:02d}:{sec:02d}", fill=t["wb"])
-                    if left <= self.config["alert_minutes"] * 60 and self.alerted_id != self.next_boss["id"]:
+                        zones = list({z.get("name", "") for z in self.next_boss.get("zone", []) if z.get("name")})
+                        boss_str = " & ".join(names)
+                        if zones: boss_str += f" ({zones[0]})"
+                        self.cv.itemconfig(self.wb_item, text=f"{boss_str}  {h:02d}:{m:02d}:{sec:02d}", fill=t["wb"])
+                    if self.config.get("sound_wb", True) and left <= self.config["alert_minutes"] * 60 and self.alerted_id != self.next_boss["id"]:
                         self._play_sound()
                         self.alerted_id = self.next_boss["id"]
                 else:
@@ -724,6 +884,9 @@ class OverlayApp:
                     left = int(ht_start - now)
                     txt = f"🔥 {left//60:02d}:{left%60:02d}" if self.mini_mode else f"HT in {left//60:02d}:{left%60:02d}"
                     self.cv.itemconfig(self.ht_item, text=txt, fill=t["idle"])
+                    if self.config.get("sound_ht", False) and left <= self.config["alert_minutes"] * 60 and self.alerted_ht_id != self.next_helltide["id"]:
+                        self._play_sound()
+                        self.alerted_ht_id = self.next_helltide["id"]
                 elif now < ht_end:
                     left = int(ht_end - now)
                     txt = f"🔥 {left//60:02d}:{left%60:02d}" if self.mini_mode else f"HT: {left//60:02d}:{left%60:02d}"
@@ -740,6 +903,9 @@ class OverlayApp:
                 if left > 0:
                     txt = f"⚡ {left//60:02d}:{left%60:02d}" if self.mini_mode else f"LG: {left//60:02d}:{left%60:02d}"
                     self.cv.itemconfig(self.lg_item, text=txt, fill=t["idle"])
+                    if self.config.get("sound_legion", False) and left <= self.config["alert_minutes"] * 60 and self.alerted_lg_id != self.next_legion["id"]:
+                        self._play_sound()
+                        self.alerted_lg_id = self.next_legion["id"]
                 else:
                     self.cv.itemconfig(self.lg_item, text="⚡" if self.mini_mode else "⚔ LG Active!", fill=t["active"])
             else:
