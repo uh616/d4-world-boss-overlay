@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #09090b;
+    --surface:   #18181b;
+    --surface2:  #27272a;
+    --border:    #3f3f46;
+    --muted:     #52525b;
+    --text:      #fafafa;
+    --text2:     #a1a1aa;
+    --accent:    #6366f1;
+    --accent-g:  #818cf8;
+    --green:     #22c55e;
+    --orange:    #f97316;
+    --red:       #ef4444;
+    --radius:    14px;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header — JS-draggable via mousedown, no -webkit-app-region */
+  .header {
+    flex-shrink: 0;
+    background: #111113;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: grab;
+  }
+  .header:active { cursor: grabbing; }
+
+  .header-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .header-text { flex: 1; pointer-events: none; }
+  .header-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+  .header-text p  { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+  .close-btn {
+    width: 28px; height: 28px;
+    background: var(--surface2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .close-btn:hover { background: var(--red); color: #fff; }
+
+  /* Scrollable content */
+  .scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg);
+  }
+
+  .page { padding: 8px 16px 32px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+
+  .section-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 4px; margin: 18px 0 8px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .row {
+    display: flex; align-items: center;
+    min-height: 54px; padding: 0 16px; gap: 12px;
+  }
+  .row.clickable { cursor: pointer; }
+  .row.clickable:hover { background: rgba(255,255,255,0.04); }
+  .row + .row { border-top: 1px solid rgba(255,255,255,0.06); }
+
+  .row-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+  .row-label { flex: 1; font-size: 15px; font-weight: 500; }
+
+  /* Toggle switch */
+  .toggle {
+    position: relative; width: 51px; height: 31px; flex-shrink: 0;
+    cursor: pointer;
+  }
+  .toggle input { display: none; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    border-radius: 16px; background: var(--surface2);
+    transition: background 0.25s ease; cursor: pointer;
+  }
+  .toggle input:checked + .toggle-track { background: var(--green); }
+  .toggle-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-knob { transform: translateX(20px); }
+
+  /* Pickers */
+  .picker { display: flex; align-items: center; gap: 4px; }
+  .picker-btn {
+    background: none; border: none; color: var(--accent-g);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 2px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .picker-btn:hover { opacity: 0.75; }
+  .picker-btn:active { transform: scale(0.85); }
+  .picker-val {
+    background: var(--surface2); border-radius: 8px;
+    padding: 5px 12px; font-size: 13px; font-weight: 600;
+    color: var(--text); min-width: 56px; text-align: center;
+  }
+
+  /* Sliders */
+  .slider-wrap { display: flex; align-items: center; gap: 10px; }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 120px; height: 4px; border-radius: 2px;
+    background: var(--surface2); outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--text); box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    cursor: pointer;
+  }
+  .slider-val { font-size: 13px; font-weight: 600; color: var(--text2); min-width: 38px; text-align: right; }
+
+  /* Buttons */
+  .btn {
+    border: none; border-radius: 8px; padding: 6px 14px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .btn-accent  { background: rgba(99,102,241,0.15); color: var(--accent-g); }
+  .btn-accent:hover  { background: rgba(99,102,241,0.25); }
+  .btn-green   { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .btn-green:hover   { background: rgba(34,197,94,0.25); }
+  .btn-orange  { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .btn-orange:hover  { background: rgba(249,115,22,0.25); }
+  .btn-red     { background: rgba(239,68,68,0.12);  color: var(--red); }
+  .btn-red:hover     { background: rgba(239,68,68,0.22); }
+  .btn:active { transform: scale(0.95); }
+
+  .hk-badge {
+    background: var(--surface2); border-radius: 8px;
+    padding: 5px 12px; font-size: 12px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.8px; font-family: monospace;
+  }
+
+  .chevron { color: var(--muted); font-size: 18px; }
+
+  .footer {
+    text-align: center; font-size: 11px; color: var(--muted);
+    margin-top: 20px; line-height: 1.6;
+  }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 20px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.3s ease;
+    pointer-events: none; white-space: nowrap; z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HEADER - draggable via JS, NOT webkit-app-region -->
+<div class="header" id="drag-header">
+  <img class="header-icon" id="header-logo" src="../logo.png" alt=""
+       onerror="this.style.display='none'">
+  <div class="header-text">
+    <h1>Settings</h1>
+    <p>Diablo 4 Overlay</p>
+  </div>
+  <div class="close-btn" id="close-btn" title="Close">✕</div>
+</div>
+
+<!-- SCROLLABLE CONTENT -->
+<div class="scroll-area">
+<div class="page">
+
+  <!-- NOTIFICATIONS -->
+  <div class="section-label">Notifications</div>
+  <div class="card">
+    <div class="row">
+      <span class="row-icon">⏰</span>
+      <span class="row-label">Alert Before</span>
+      <div class="picker">
+        <button class="picker-btn" onclick="changeAlert(-1)">‹</button>
+        <span class="picker-val" id="alert-val">5 min</span>
+        <button class="picker-btn" onclick="changeAlert(1)">›</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔔</span>
+      <span class="row-label">World Boss</span>
+      <label class="toggle">
+        <input type="checkbox" id="sound-wb" onchange="save('sound_wb', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔔</span>
+      <span class="row-label">Helltide</span>
+      <label class="toggle">
+        <input type="checkbox" id="sound-ht" onchange="save('sound_ht', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔔</span>
+      <span class="row-label">Legion</span>
+      <label class="toggle">
+        <input type="checkbox" id="sound-legion" onchange="save('sound_legion', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- AUDIO -->
+  <div class="section-label">Audio</div>
+  <div class="card">
+    <div class="row">
+      <span class="row-icon">🎵</span>
+      <span class="row-label">Custom Sound</span>
+      <button class="btn btn-accent" id="browse-btn" onclick="browseSound()">Browse…</button>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔈</span>
+      <span class="row-label">Volume</span>
+      <div class="slider-wrap">
+        <input type="range" id="volume-slider" min="0" max="100" oninput="onVolume(this.value)">
+        <span class="slider-val" id="volume-val">100%</span>
+      </div>
+    </div>
+    <div class="row clickable" onclick="testSound()">
+      <span class="row-icon">▶</span>
+      <span class="row-label">Test Sound</span>
+      <span class="chevron">›</span>
+    </div>
+  </div>
+
+  <!-- DISPLAY -->
+  <div class="section-label">Display</div>
+  <div class="card">
+    <div class="row">
+      <span class="row-icon">👹</span>
+      <span class="row-label">World Boss</span>
+      <label class="toggle">
+        <input type="checkbox" id="show-boss" onchange="save('show_boss', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔥</span>
+      <span class="row-label">Helltide</span>
+      <label class="toggle">
+        <input type="checkbox" id="show-ht" onchange="save('show_helltide', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+    <div class="row">
+      <span class="row-icon">⚡</span>
+      <span class="row-label">Legion</span>
+      <label class="toggle">
+        <input type="checkbox" id="show-lg" onchange="save('show_legion', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+    <div class="row">
+      <span class="row-icon">👁</span>
+      <span class="row-label">Auto-hide</span>
+      <label class="toggle">
+        <input type="checkbox" id="auto-hide" onchange="save('auto_hide', this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-knob"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- APPEARANCE -->
+  <div class="section-label">Appearance</div>
+  <div class="card">
+    <div class="row">
+      <span class="row-icon">🎨</span>
+      <span class="row-label">Theme</span>
+      <div class="picker">
+        <button class="picker-btn" onclick="changeTheme(-1)">‹</button>
+        <span class="picker-val" id="theme-val" style="min-width:110px;font-size:11px">Default Crimson</span>
+        <button class="picker-btn" onclick="changeTheme(1)">›</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-icon">💧</span>
+      <span class="row-label">Opacity</span>
+      <div class="slider-wrap">
+        <input type="range" id="opacity-slider" min="20" max="100" oninput="onOpacity(this.value)">
+        <span class="slider-val" id="opacity-val">90%</span>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-icon">🔡</span>
+      <span class="row-label">Text Size</span>
+      <div class="slider-wrap">
+        <input type="range" id="scale-slider" min="8" max="20" step="1" oninput="onScale(this.value)">
+        <span class="slider-val" id="scale-val">12px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOTKEY -->
+  <div class="section-label">Lock Hotkey</div>
+  <div class="card">
+    <div class="row">
+      <span class="row-icon">⌨️</span>
+      <span class="row-label">Bind Key</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="hk-badge" id="hk-badge">CTRL+L</span>
+        <button class="btn btn-accent" id="hk-btn" onclick="listenHotkey()">Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="section-label">About</div>
+  <div class="card">
+    <div class="row clickable" onclick="openSupport()">
+      <span class="row-icon">❤️</span>
+      <span class="row-label" style="color:var(--red)">Support the project</span>
+      <span class="chevron">›</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Lock the overlay (hotkey) to enable click-through mode<br>
+    <span style="opacity:0.5">D4 Overlay — helltides.com</span>
+  </div>
+
+</div><!-- /page -->
+</div><!-- /scroll-area -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── JS-based window dragging (no -webkit-app-region) ───────────────────
+  (function() {
+    const header = document.getElementById('drag-header');
+    const closeBtn = document.getElementById('close-btn');
+    let dragging = false;
+    let startMouseX = 0, startMouseY = 0;
+    let startWinX = 0, startWinY = 0;
+
+    header.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target === closeBtn || closeBtn.contains(e.target)) return;
+      dragging = true;
+      startMouseX = e.screenX;
+      startMouseY = e.screenY;
+      startWinX = window.screenLeft;
+      startWinY = window.screenTop;
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const dx = e.screenX - startMouseX;
+      const dy = e.screenY - startMouseY;
+      if (window.electronAPI) {
+        window.electronAPI.moveSettingsWindow(startWinX + dx, startWinY + dy);
+      }
+    });
+
+    window.addEventListener('mouseup', () => { dragging = false; });
+  })();
+
+  // ─── Close button ────────────────────────────────────────────────────────
+  document.getElementById('close-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.electronAPI) {
+      window.electronAPI.closeSettings();
+    } else {
+      window.close();
+    }
+  });
+
+  // ─── Settings logic ──────────────────────────────────────────────────────
+  const VALID_TIMES = [1, 5, 10, 15];
+  let cfg = {};
+  let themes = [];
+  let alertIdx = 1, themeIdx = 0;
+
+  function toast(msg, color) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.color = color || 'var(--text)';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function setCheck(id, val) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = val === true || val === 1;
+    }
+  }
+
+  async function init() {
+    console.log('init() called, electronAPI:', typeof window.electronAPI);
+    
+    if (!window.electronAPI) {
+      console.error('electronAPI is not available!');
+      return;
+    }
+
+    try {
+      const raw = await window.electronAPI.getConfig();
+      console.log('raw config:', raw);
+      cfg = JSON.parse(raw);
+      console.log('parsed cfg:', cfg);
+    } catch(e) {
+      console.error('getConfig error:', e);
+      return;
+    }
+
+    try {
+      const rawThemes = await window.electronAPI.getThemes();
+      themes = JSON.parse(rawThemes);
+    } catch(e) {
+      console.error('getThemes error:', e);
+      themes = ['Default Crimson', 'Neon Blue', 'Gold'];
+    }
+
+    // Notifications
+    alertIdx = VALID_TIMES.indexOf(cfg.alert_minutes);
+    if (alertIdx < 0) alertIdx = 1;
+    document.getElementById('alert-val').textContent = VALID_TIMES[alertIdx] + ' min';
+
+    setCheck('sound-wb',    cfg.sound_wb);
+    setCheck('sound-ht',    cfg.sound_ht);
+    setCheck('sound-legion',cfg.sound_legion);
+    setCheck('show-boss',   cfg.show_boss);
+    setCheck('show-ht',     cfg.show_helltide);
+    setCheck('show-lg',     cfg.show_legion);
+    setCheck('auto-hide',   cfg.auto_hide);
+
+    // Audio
+    const vol = cfg.sound_volume ?? 100;
+    document.getElementById('volume-slider').value = vol;
+    document.getElementById('volume-val').textContent = vol + '%';
+
+    // Appearance
+    const op = Math.round((cfg.opacity ?? 0.9) * 100);
+    document.getElementById('opacity-slider').value = op;
+    document.getElementById('opacity-val').textContent = op + '%';
+
+    const scale = cfg.font_size ?? 12;
+    document.getElementById('scale-slider').value = scale;
+    document.getElementById('scale-val').textContent = scale + 'px';
+
+    themeIdx = themes.indexOf(cfg.theme);
+    if (themeIdx < 0) themeIdx = 0;
+    document.getElementById('theme-val').textContent = themes[themeIdx] || 'Default Crimson';
+
+    // Hotkey
+    document.getElementById('hk-badge').textContent = (cfg.hotkey || 'ctrl+l').toUpperCase();
+
+    // Sound file
+    if (cfg.sound_file) {
+      const btn = document.getElementById('browse-btn');
+      btn.textContent = '✓ Custom';
+      btn.className = 'btn btn-green';
+    }
+
+    console.log('init() complete');
+  }
+
+  function save(key, value) {
+    console.log('save:', key, value);
+    if (window.electronAPI) window.electronAPI.saveConfig(key, value);
+  }
+
+  function changeAlert(d) {
+    alertIdx = (alertIdx + d + VALID_TIMES.length) % VALID_TIMES.length;
+    document.getElementById('alert-val').textContent = VALID_TIMES[alertIdx] + ' min';
+    save('alert_minutes', VALID_TIMES[alertIdx]);
+  }
+
+  function changeTheme(d) {
+    themeIdx = (themeIdx + d + themes.length) % themes.length;
+    document.getElementById('theme-val').textContent = themes[themeIdx];
+    save('theme', themes[themeIdx]);
+    toast('Theme: ' + themes[themeIdx]);
+  }
+
+  function onVolume(val) {
+    document.getElementById('volume-val').textContent = val + '%';
+    save('sound_volume', parseInt(val));
+  }
+
+  function onOpacity(val) {
+    document.getElementById('opacity-val').textContent = val + '%';
+    save('opacity', parseInt(val) / 100.0);
+  }
+
+  function onScale(val) {
+    document.getElementById('scale-val').textContent = val + 'px';
+    save('font_size', parseInt(val));
+    toast('Text size: ' + val + 'px');
+  }
+
+  async function browseSound() {
+    if (!window.electronAPI) return;
+    const p = await window.electronAPI.browseSound();
+    const btn = document.getElementById('browse-btn');
+    if (p) {
+      btn.textContent = '✓ Custom';
+      btn.className = 'btn btn-green';
+      toast('Sound file selected', 'var(--green)');
+    } else {
+      btn.textContent = 'Browse…';
+      btn.className = 'btn btn-accent';
+    }
+  }
+
+  function testSound() {
+    if (window.electronAPI) window.electronAPI.testSound();
+    toast('♪ Playing sound…');
+  }
+
+  // Map e.code → Electron accelerator string
+  function codeToAccelerator(code, modifiers) {
+    // e.g. "KeyL" -> "l", "F5" -> "F5", "Digit1" -> "1"
+    let key = '';
+    if (code.startsWith('Key'))    key = code.slice(3).toLowerCase();
+    else if (code.startsWith('Digit')) key = code.slice(5);
+    else if (code.startsWith('F') && !isNaN(code.slice(1))) key = code; // F1-F12
+    else if (code === 'Space')     key = 'Space';
+    else if (code === 'Tab')       key = 'Tab';
+    else if (code === 'Escape')    key = 'Escape';
+    else if (code === 'Backquote') key = '`';
+    else if (code === 'Minus')     key = '-';
+    else if (code === 'Equal')     key = '=';
+    else if (code === 'BracketLeft') key = '[';
+    else if (code === 'BracketRight') key = ']';
+    else key = code.toLowerCase();
+
+    const parts = [];
+    if (modifiers.ctrl)  parts.push('ctrl');
+    if (modifiers.alt)   parts.push('alt');
+    if (modifiers.shift) parts.push('shift');
+    parts.push(key);
+    return parts.join('+');
+  }
+
+  let _hotkeyListening = false;
+
+  async function listenHotkey() {
+    if (_hotkeyListening) return;
+    _hotkeyListening = true;
+
+    const btn = document.getElementById('hk-btn');
+    const badge = document.getElementById('hk-badge');
+    btn.textContent = 'Listening…';
+    btn.className = 'btn btn-orange';
+    badge.textContent = '…';
+    toast('Press key combo, Esc to cancel', 'var(--orange)');
+
+    // Start the IPC promise on main side
+    window.electronAPI.listenHotkey();
+
+    function onKeyDown(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ignore pure modifiers
+      if (['ControlLeft','ControlRight','AltLeft','AltRight','ShiftLeft','ShiftRight','MetaLeft','MetaRight'].includes(e.code)) return;
+
+      if (e.code === 'Escape') {
+        // Cancel
+        cleanup();
+        badge.textContent = (cfg.hotkey || 'ctrl+l').toUpperCase();
+        btn.textContent = 'Change';
+        btn.className = 'btn btn-accent';
+        toast('Cancelled', 'var(--text2)');
+        return;
+      }
+
+      const mods = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey };
+      const hk = codeToAccelerator(e.code, mods);
+
+      // Send to main process
+      window.electronAPI.captureHotkey(hk);
+      cleanup();
+
+      badge.textContent = hk.toUpperCase();
+      btn.textContent = 'Change';
+      btn.className = 'btn btn-accent';
+      cfg.hotkey = hk;
+      toast('Hotkey set: ' + hk.toUpperCase(), 'var(--green)');
+    }
+
+    function cleanup() {
+      _hotkeyListening = false;
+      window.removeEventListener('keydown', onKeyDown, true);
+    }
+
+    window.addEventListener('keydown', onKeyDown, true);
+  }
+
+  function openSupport() {
+    if (window.electronAPI) window.electronAPI.openSupport();
+  }
+
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

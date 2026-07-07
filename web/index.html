@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+        --bg: #0f0f11;
+        --border: #8b0000;
+        --wb: #ffcc00;
+        --active: #ef4444;
+        --idle: #a1a1aa;
+        --text: #ffffff;
+        --dim: #52525b;
+    }
+
+    body {
+        font-family: 'Consolas', monospace;
+        color: var(--text);
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 1px;
+    }
+
+    .bar {
+        -webkit-app-region: drag;
+        display: flex;
+        align-items: center;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        height: 34px;
+        padding: 0 10px;
+        gap: 12px;
+        width: fit-content;
+        min-width: 150px;
+        white-space: nowrap;
+    }
+
+    .logo-container {
+        display: flex;
+        align-items: center;
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+    }
+
+    .logo {
+        width: 22px;
+        height: 22px;
+        object-fit: contain;
+    }
+
+    .item {
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    #wb-val { color: var(--wb); }
+    #ht-val { color: var(--active); }
+    #lg-val { color: var(--active); }
+    
+    .divider {
+        color: var(--dim);
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        -webkit-app-region: no-drag;
+        margin-left: 4px;
+    }
+
+    .btn {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        cursor: pointer;
+        color: var(--dim);
+        font-size: 12px;
+        font-weight: bold;
+        transition: color 0.15s;
+    }
+
+    .btn:hover { color: #ffffff; }
+    #btn-close:hover { color: var(--active); }
+
+    .locked .bar {
+        border-color: var(--active) !important;
+        /* Keep original background, do not make transparent */
+    }
+    .locked .controls { display: none; }
+
+</style>
+</head>
+<body>
+
+<div class="bar" id="main-bar">
+    <div class="logo-container" ondblclick="toggleMini()" onclick="toggleMini()">
+        <img src="../logo.png" class="logo" alt="Logo">
+    </div>
+
+    <div class="item" id="wb-container">
+        <span id="wb-val">Loading...</span>
+    </div>
+    
+    <div class="divider" id="div-1">║</div>
+
+    <div class="item" id="ht-container">
+        <span id="ht-val">HT: ...</span>
+    </div>
+
+    <div class="divider" id="div-2">║</div>
+
+    <div class="item" id="lg-container">
+        <span id="lg-val">LG: ...</span>
+    </div>
+
+    <div class="controls">
+        <div class="btn" id="btn-settings" onclick="openSettings()" title="Settings">⚙</div>
+        <div class="btn" id="btn-close" onclick="closeApp()" title="Close">✕</div>
+    </div>
+</div>
+
+<script>
+    let config = {};
+    let miniMode = false;
+    let cachedApiData = null;
+
+    function formatTime(ev) {
+        if (!ev) return "--:--";
+        let rem = ev.time - (Date.now() / 1000);
+        if (rem < 0 && ev.type === "helltide") rem += (55 * 60);
+        if (rem < 0) return "--:--";
+        const m = Math.floor(rem / 60);
+        const s = Math.floor(rem % 60);
+        if (m > 99) return `${Math.floor(m / 60)}h ${(m % 60).toString().padStart(2, '0')}m`;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function applyConfig() {
+        if(config.theme) {
+            const THEMES = {
+                "Default Crimson": {"wb": "#ffcc00", "active": "#ef4444", "idle": "#a1a1aa", "border": "#8b0000"},
+                "Neon Blue":       {"wb": "#38bdf8", "active": "#818cf8", "idle": "#94a3b8", "border": "#1e3a8a"},
+                "Gold":            {"wb": "#fde047", "active": "#f59e0b", "idle": "#d6d3d1", "border": "#b45309"}
+            };
+            const t = THEMES[config.theme] || THEMES["Default Crimson"];
+            document.documentElement.style.setProperty('--border', t.border);
+            document.documentElement.style.setProperty('--wb', t.wb);
+            document.documentElement.style.setProperty('--active', t.active);
+            document.documentElement.style.setProperty('--idle', t.idle);
+        }
+        if (config.opacity !== undefined) document.body.style.opacity = config.opacity;
+
+        // Apply font size
+        const fs = config.font_size || 12;
+        document.querySelectorAll('.item').forEach(el => el.style.fontSize = fs + 'px');
+        // Scale bar height to font
+        const barH = Math.max(30, fs * 2.6);
+        document.getElementById('main-bar').style.height = barH + 'px';
+        document.getElementById('main-bar').style.borderRadius = '6px'; // Keep it rectangular
+        setTimeout(() => {
+            if (window.electronAPI) window.electronAPI.resizeWindow(document.getElementById('main-bar').offsetWidth + 10, Math.round(barH) + 4);
+        }, 10);
+
+        const show_wb = config.show_boss !== false;
+        const show_ht = config.show_helltide !== false;
+        const show_lg = config.show_legion !== false;
+
+        document.getElementById('wb-container').style.display = show_wb ? 'flex' : 'none';
+        document.getElementById('ht-container').style.display = show_ht ? 'flex' : 'none';
+        document.getElementById('lg-container').style.display = show_lg ? 'flex' : 'none';
+        
+        document.getElementById('div-1').style.display = (show_wb && (show_ht || show_lg) && !miniMode) ? 'block' : 'none';
+        document.getElementById('div-2').style.display = (show_ht && show_lg && !miniMode) ? 'block' : 'none';
+
+        // Re-render UI immediately to adjust to new modes
+        renderData();
+    }
+
+    function renderData() {
+        if (!cachedApiData) return;
+        
+        const data = cachedApiData;
+        const wb = document.getElementById('wb-val');
+        const ht = document.getElementById('ht-val');
+        const lg = document.getElementById('lg-val');
+
+        const fWB = formatTime(data.boss);
+        const fHT = formatTime(data.helltide);
+        const fLG = formatTime(data.legion);
+
+        wb.textContent = miniMode ? `👹 ${fWB}` : `WB ${fWB}`;
+        ht.textContent = miniMode ? `🔥 ${fHT}` : `HT ${fHT}`;
+        lg.textContent = miniMode ? `⚡ ${fLG}` : `LG ${fLG}`;
+        
+        // Colors
+        ht.style.color = fHT === "--:--" ? 'var(--idle)' : 'var(--active)';
+        lg.style.color = fLG === "--:--" ? 'var(--idle)' : 'var(--active)';
+
+        // Resize the window dynamically ONLY if width changed
+        setTimeout(() => {
+            const w = document.getElementById('main-bar').offsetWidth + 10;
+            if (window.lastWidth !== w) {
+                window.lastWidth = w;
+                if (window.electronAPI) window.electronAPI.resizeWindow(w);
+            }
+        }, 10);
+
+        checkAlerts(data);
+    }
+
+    let alertedEvents = {};
+
+    function checkAlerts(data) {
+        if (!data) return;
+        const alertMin = config.alert_minutes || 5;
+        const now = Date.now() / 1000;
+        
+        function check(ev, isEnabled, key) {
+            if (!ev || !isEnabled) return;
+            let rem = ev.time - now;
+            if (rem < 0 && ev.type === "helltide") rem += (55 * 60);
+            
+            // If event is exactly alertMin minutes away (within a 2-second window to prevent multi-trigger)
+            const targetSec = alertMin * 60;
+            if (rem <= targetSec && rem > targetSec - 2) {
+                const eventId = ev.type + '_' + ev.time;
+                if (!alertedEvents[eventId]) {
+                    alertedEvents[eventId] = true;
+                    if (window.electronAPI && window.electronAPI.testSound) {
+                        window.electronAPI.testSound();
+                    }
+                }
+            }
+        }
+
+        check(data.boss, config.sound_wb, "wb");
+        check(data.helltide, config.sound_ht, "ht");
+        check(data.legion, config.sound_legion, "lg");
+    }
+
+    function setLocked(locked) {
+        if(locked) {
+            document.body.classList.add('locked');
+            document.getElementById('main-bar').style.setProperty('-webkit-app-region', 'no-drag');
+        } else {
+            document.body.classList.remove('locked');
+            document.getElementById('main-bar').style.setProperty('-webkit-app-region', 'drag');
+        }
+    }
+
+    function openSettings() {
+        if(window.electronAPI) window.electronAPI.openSettings();
+    }
+
+    function closeApp() {
+        if(window.electronAPI) window.electronAPI.closeOverlay();
+    }
+
+    function toggleMini() {
+        if (document.body.classList.contains('locked')) return;
+        miniMode = !miniMode;
+        applyConfig(); 
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (window.electronAPI) {
+            const cfg = await window.electronAPI.getConfig();
+            config = JSON.parse(cfg);
+            applyConfig();
+
+            window.electronAPI.onApiUpdate((data) => {
+                cachedApiData = data;
+                renderData();
+            });
+
+            window.electronAPI.onConfigChanged((cfg) => {
+                config = JSON.parse(cfg);
+                applyConfig();
+            });
+
+            window.electronAPI.onLockChanged((locked) => {
+                setLocked(locked);
+            });
+
+            window.electronAPI.onPlayAudio((data) => {
+                try {
+                    const audio = new Audio(data.dataUri);
+                    audio.volume = Math.max(0, Math.min(1, data.volume / 100.0));
+                    audio.play().catch(e => console.error("Audio playback error:", e));
+                } catch(e) {
+                    console.error("Audio creation error:", e);
+                }
+            });
+        }
+        
+        // Timer tick to update seconds visually every second without hitting API
+        setInterval(renderData, 1000);
+    });
+</script>
+</body>
+</html>

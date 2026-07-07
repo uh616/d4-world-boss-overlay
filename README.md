@@ -1,13 +1,12 @@
 # Diablo 4 Overlay — World Boss & Helltide Timer
 
-A lightweight always-on-top overlay for Diablo 4 that shows a live countdown to the next **World Boss** and the current **Helltide** status — without ever leaving the game.
+A lightweight always-on-top overlay for Diablo 4 that shows a live countdown to the next **World Boss** and the current **Helltide** status — without ever leaving the game. Built with Electron for maximum performance and a seamless, borderless experience.
 
 Data is pulled from [helltides.com](https://helltides.com).
 
 [![GitHub stars](https://img.shields.io/github/stars/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=gold)](https://github.com/uh616/d4-world-boss-overlay/stargazers)
 [![GitHub downloads](https://img.shields.io/github/downloads/uh616/d4-world-boss-overlay/total?style=flat-square&logo=github&color=brightgreen&label=downloads)](https://github.com/uh616/d4-world-boss-overlay/releases)
 [![GitHub release](https://img.shields.io/github/v/release/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=blue)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
-[![Visitors](https://visitor-badge.laobi.icu/badge?page_id=uh616.d4-world-boss-overlay&style=flat-square&color=red)](https://github.com/uh616/d4-world-boss-overlay)
 
 ---
 
@@ -17,11 +16,11 @@ Data is pulled from [helltides.com](https://helltides.com).
 
 ---
 
-## Installation
+## 🚀 Installation & Usage
 
-1. Download **`D4-Overlay.exe`** from the latest [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
-2. Place it anywhere you like (e.g. your Desktop)
-3. Run it — the overlay will appear in the top-left corner of your screen
+1. Download **`D4 Overlay 1.0.0.exe`** from the latest [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest).
+2. Run it! It's a completely portable executable, so you can place it anywhere (e.g., your Desktop) without installing anything.
+3. The overlay will appear in the top-left corner of your screen. You can grab it by the bar to drag it anywhere.
 
 > ⚠️ Windows Defender may show an "Unknown publisher" warning since the exe isn't signed. Click **"More info" → "Run anyway"** to proceed.
 
@@ -41,57 +40,55 @@ Ashava & Avarice  01:23:45  ║  HT: 38:21  ║  LG: 12:00  ⚙  ✕
 | **HT: XX:XX** | Helltide is active — time remaining |
 | **HT in XX:XX** | Time until the next Helltide starts |
 | **LG: XX:XX** | Time until the next Legion event |
-| **⚙** | Click to open Settings (Themes, Alert Time, Auto-hide) |
-| **✕** | Click to exit the overlay |
+| **⚙** | Click to open Settings |
+| **✕** | Click to completely close the app |
 
-A **sound alert** plays automatically **before** the World Boss spawns (customizable via Settings).
+A **sound alert** plays automatically before the events spawn (fully customizable via Settings).
 
 ## 🌟 Features
 
-- **Live Countdown**: See exactly when the next World Boss spawns and its name.
-- **Helltide Tracker**: Know if Helltide is currently active or when the next one begins.
-- **Legion Events**: Tracks the next Legion event.
-- **Always on Top**: Transparent, borderless window that stays above Diablo 4.
-- **Settings Menu**: Click the ⚙ icon to customize the overlay:
-  - **Themes**: Choose between 3 different visual styles (Crimson, Gold, Neon Blue).
-  - **Opacity**: Adjust the transparency of the overlay (10% - 100%).
-  - **Display Toggles**: Choose exactly what you want to see. Hide World Boss, Helltide, or Legion timers if you don't need them.
-  - **Alert Time**: Set when the sound plays (1, 5, 10, or 15 minutes before the boss).
-  - **Auto-hide**: Automatically hides the overlay when Diablo 4 is closed.
-  - *Note: All settings are auto-saved instantly!*
-- **Click-through Mode**: Press `Ctrl + L` to lock the overlay and make clicks pass through it.
-- **Audio Alerts**: Plays a sound before the World Boss spawns.
+- **Always on Top**: Transparent, borderless window that stays permanently above Diablo 4 using Electron's `screen-saver` level.
+- **Auto-Hide**: Automatically hides the overlay when you Alt-Tab out of Diablo 4, keeping your desktop clean.
+- **Lock & Click-through**: Press a fully customizable hotkey (default `Ctrl+L`) to lock the overlay in place and make all mouse clicks pass straight through it.
+- **Smart Settings Menu**: 
+  - **Themes**: Choose between Crimson, Gold, or Neon Blue.
+  - **Scale & Opacity**: Adjust text size (from tiny UI to large text) and window transparency.
+  - **Volume Control**: Change the volume of the alert sounds via a slider.
+  - **Event Toggles**: Show or hide World Boss, Helltide, and Legion timers independently.
+  - *All settings are auto-saved instantly.*
 - **Custom Sounds**: Place your own `alert.wav` next to the `.exe` to use a custom sound!
 
 ---
 
-## Custom Alert Sound
+## 🎵 Custom Alert Sound
 
 By default, a standard Windows sound plays. To use your own:
 
-1. Get a `.wav` file (convert MP3 → WAV at [CloudConvert](https://cloudconvert.com/mp3-to-wav))
-2. Place it in the **same folder** as `D4-Overlay.exe`
-3. Rename it to **`alert.wav`**
+1. Get a `.wav` file (convert MP3 → WAV at [CloudConvert](https://cloudconvert.com/mp3-to-wav)).
+2. Place it in the **same folder** as your `D4 Overlay.exe`.
+3. Rename it to **`alert.wav`**.
 
-To go back to the default — just delete `alert.wav`.
+To go back to the default, just delete `alert.wav`.
 
 ---
 
-## For Developers
+## 💻 For Developers
 
+This project was completely rewritten from Python to **Node.js + Electron** for perfect rendering performance and click-through mechanics on Windows.
+
+**Run locally:**
 ```bash
 git clone https://github.com/uh616/d4-world-boss-overlay.git
 cd d4-world-boss-overlay
-pip install -r requirements.txt
-python overlay.py
+npm install
+npm start
 ```
 
 **Build the .exe yourself:**
 ```bash
-python build.py
+npm run build
 ```
-
----
+The compiled, portable `.exe` will be located in the `dist/` directory.
 
 ---
 
@@ -109,7 +106,5 @@ Or crypto:
 | **USDT TRC20** | `TMSLWBy3eXvR6m1h3Zthmek2SGozXvmXHK` |
 | **USDT TON (GRAM)** | `UQB7K0h4JlvPB7PA-as39RsepNtSrw167v5cmmoJlIJp_dNb` |
 | **Bitcoin** | `bc1qn93nz3m299lktk66vnxa5aha68kh9az3xpjvac` |
-
----
 
 *Made for the viewers of [Twitch channel solnechniyre6enok](https://www.twitch.tv/solnechniyre6enok)*

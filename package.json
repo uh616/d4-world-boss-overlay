@@ -1,0 +1,38 @@
+{
+  "name": "world_boss_diablo_4",
+  "version": "1.0.0",
+  "description": "A lightweight always-on-top overlay for Diablo 4 that shows a live countdown to the next **World Boss** and the current **Helltide** status — without ever leaving the game.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.uh616.d4-world-boss-overlay",
+    "productName": "D4 Overlay",
+    "win": {
+      "target": "portable",
+      "icon": "logo.ico"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uh616/d4-world-boss-overlay.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/uh616/d4-world-boss-overlay/issues"
+  },
+  "homepage": "https://github.com/uh616/d4-world-boss-overlay#readme",
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3"
+  }
+}
