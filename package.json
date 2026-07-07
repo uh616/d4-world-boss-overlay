@@ -15,6 +15,9 @@
       "target": "portable",
       "icon": "logo.ico"
     },
+    "extraResources": [
+      { "from": "alert.wav", "to": "alert.wav" }
+    ],
     "directories": {
       "output": "dist"
     }

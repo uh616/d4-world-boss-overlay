@@ -277,7 +277,13 @@ ipcMain.handle('listen-hotkey', async (event) => {
 });
 
 ipcMain.on('test-sound', () => {
-    const soundFile = config.sound_file || path.join(__dirname, 'alert.wav');
+    // In packaged app, extraResources are in process.resourcesPath; in dev, next to main.js
+    const defaultSoundFile = app.isPackaged
+        ? path.join(process.resourcesPath, 'alert.wav')
+        : path.join(__dirname, 'alert.wav');
+    // If user has a custom sound_file set, use that; otherwise fall back to the bundled one
+    const userCustom = config.sound_file ? path.join(path.dirname(defaultSoundFile), config.sound_file) : null;
+    const soundFile = (userCustom && fs.existsSync(userCustom)) ? userCustom : defaultSoundFile;
     const vol = config.sound_volume !== undefined ? config.sound_volume : 100;
     if (fs.existsSync(soundFile)) {
         try {

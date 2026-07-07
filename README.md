@@ -28,13 +28,11 @@ Data is pulled from [helltides.com](https://helltides.com).
 
 ## 📖 Legend & UI
 
-When running, the overlay looks like this:
-```
-Ashava & Avarice  01:23:45  ║  HT: 38:21  ║  LG: 12:00  ⚙  ✕
-```
+The overlay is a compact horizontal bar that stays on top of your screen at all times. It contains:
 
 | Element | Description |
 |---|---|
+| **Logo** | Your app logo on the left side. Click it to toggle Mini Mode (hides timers, shows only the logo) |
 | **Boss name + timer** | Name of the next World Boss and time until it spawns |
 | **⚔ World Boss Active!** | Boss has spawned — go go go! |
 | **HT: XX:XX** | Helltide is active — time remaining |
@@ -43,7 +41,7 @@ Ashava & Avarice  01:23:45  ║  HT: 38:21  ║  LG: 12:00  ⚙  ✕
 | **⚙** | Click to open Settings |
 | **✕** | Click to completely close the app |
 
-A **sound alert** plays automatically before the events spawn (fully customizable via Settings).
+A **sound alert** plays automatically before events spawn (fully customizable via Settings).
 
 ## 🌟 Features
 
@@ -62,13 +60,13 @@ A **sound alert** plays automatically before the events spawn (fully customizabl
 
 ## 🎵 Custom Alert Sound
 
-By default, a standard Windows sound plays. To use your own:
+The default alert sound is already **bundled inside the app** — no extra files needed. To replace it with your own:
 
 1. Get a `.wav` file (convert MP3 → WAV at [CloudConvert](https://cloudconvert.com/mp3-to-wav)).
 2. Place it in the **same folder** as your `D4 Overlay.exe`.
 3. Rename it to **`alert.wav`**.
 
-To go back to the default, just delete `alert.wav`.
+The app will automatically detect and use your custom file instead of the built-in default.
 
 ---
 
