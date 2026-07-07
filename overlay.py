@@ -66,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.3"
+VERSION     = "1.3.4"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -240,6 +240,7 @@ class OverlayApp:
         self.settings_win = win
         win.title("Overlay Settings")
         win.geometry("350x510")
+        win.resizable(False, False)
         win.configure(bg="#111111")
         win.wm_attributes("-topmost", True)
         
