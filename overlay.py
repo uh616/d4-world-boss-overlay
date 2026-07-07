@@ -583,16 +583,39 @@ class OverlayApp:
         lbl_hkv = tk.Label(hkf, text=self.config.get("hotkey", "ctrl+l").upper(),
                             font=(FONT,10,"bold"), bg=CARD2, fg=FG2, padx=10, pady=3)
         lbl_hkv.pack(side="left", padx=(0,6))
+        _hk_listening = [False]  # mutable flag to prevent double clicks
+
         def _listen_hotkey(_):
+            if _hk_listening[0]: return  # already waiting for a key
+            _hk_listening[0] = True
             lbl_hkv.config(text=s["press_key"], fg=ORANGE)
-            win.update()
-            try:
-                hk = keyboard.read_hotkey(suppress=False)
-                keyboard.remove_hotkey(self._toggle_lock)
-                self.config["hotkey"] = hk; self._save_config()
-                keyboard.add_hotkey(hk, self._toggle_lock)
-                lbl_hkv.config(text=hk.upper(), fg=FG2)
-            except: lbl_hkv.config(text="ERROR", fg=RED)
+            btn_hkb.config(fg="#555555")  # dim button while listening
+
+            def _do_listen():
+                try:
+                    hk = keyboard.read_hotkey(suppress=False)
+                    # Skip if same hotkey — just restore label
+                    if hk == self.config.get("hotkey", "ctrl+l"):
+                        win.after(0, lambda: lbl_hkv.config(
+                            text=hk.upper(), fg=FG2))
+                    else:
+                        try:
+                            keyboard.remove_hotkey(self._toggle_lock)
+                        except Exception:
+                            pass
+                        self.config["hotkey"] = hk
+                        self._save_config()
+                        keyboard.add_hotkey(hk, self._toggle_lock)
+                        win.after(0, lambda: lbl_hkv.config(
+                            text=hk.upper(), fg=FG2))
+                except Exception:
+                    win.after(0, lambda: lbl_hkv.config(text="ERROR", fg=RED))
+                finally:
+                    _hk_listening[0] = False
+                    win.after(0, lambda: btn_hkb.config(fg=ACCENT))
+
+            threading.Thread(target=_do_listen, daemon=True).start()
+
         btn_hkb = tk.Label(hkf, text=s["bind_click"], font=(FONT,10), bg=CARD, fg=ACCENT, cursor="hand2")
         btn_hkb.pack(side="left")
         btn_hkb.bind("<Button-1>", _listen_hotkey)
