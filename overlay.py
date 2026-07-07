@@ -28,11 +28,12 @@ def _beside_exe(filename: str) -> str:
     return os.path.join(base, filename)
 
 class ModernSlider(tk.Canvas):
-    def __init__(self, parent, width, height, bg, trough, slider, command=None, initial=100):
+    def __init__(self, parent, width, height, bg, trough, fill_color, slider, command=None, initial=100):
         super().__init__(parent, width=width, height=height, bg=bg, highlightthickness=0)
         self.command = command
         self.val = initial
         self.c_trough = trough
+        self.c_fill = fill_color
         self.c_slider = slider
         self.bind("<Button-1>", self._on_click)
         self.bind("<B1-Motion>", self._on_drag)
@@ -41,8 +42,13 @@ class ModernSlider(tk.Canvas):
     def _draw(self):
         self.delete("all")
         w, h = int(self['width']), int(self['height'])
-        self.create_line(10, h//2, w-10, h//2, fill=self.c_trough, width=4, capstyle="round")
         x = 10 + (self.val - 10) / 90 * (w - 20)
+        
+        # Empty track
+        self.create_line(10, h//2, w-10, h//2, fill=self.c_trough, width=4, capstyle="round")
+        # Filled track
+        self.create_line(10, h//2, x, h//2, fill=self.c_fill, width=4, capstyle="round")
+        # Handle
         self.create_oval(x-7, h//2-7, x+7, h//2+7, fill=self.c_slider, outline="")
 
     def _update_val(self, x):
@@ -60,7 +66,7 @@ class ModernSlider(tk.Canvas):
 # Configuration & Constants
 # ─────────────────────────────────────────
 APP_NAME    = "Diablo 4 Overlay"
-VERSION     = "1.3.2"
+VERSION     = "1.3.3"
 GITHUB_REPO = "uh616/d4-world-boss-overlay"
 
 API_URL          = "https://helltides.com/api/schedule"
@@ -233,7 +239,7 @@ class OverlayApp:
         win = tk.Toplevel(self.root)
         self.settings_win = win
         win.title("Overlay Settings")
-        win.geometry("340x510")
+        win.geometry("350x510")
         win.configure(bg="#111111")
         win.wm_attributes("-topmost", True)
         
@@ -354,13 +360,13 @@ class OverlayApp:
             opacity_var.set(val)
             _auto_save()
             
-        slider = ModernSlider(op_frame, width=120, height=30, bg="#111111", trough="#27272a", slider="#3b82f6", 
+        slider = ModernSlider(op_frame, width=100, height=30, bg="#111111", trough="#27272a", fill_color="#3b82f6", slider="#ffffff", 
                               command=on_opacity_slide, initial=opacity_var.get())
-        slider.pack(side="left", padx=(0, 5))
+        slider.pack(side="left", padx=(0, 2))
         
         lbl_op = tk.Label(op_frame, textvariable=opacity_var, bg="#27272a", fg="white", width=4, font=("Segoe UI", 9, "bold"))
         lbl_op.pack(side="left")
-        tk.Label(op_frame, text="%", bg="#27272a", fg="white", font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(op_frame, text="%", bg="#111111", fg="white", font=("Segoe UI", 9, "bold")).pack(side="left")
 
         # ── Display section ──
         sep_line = tk.Frame(win, bg="#27272a", height=1)
