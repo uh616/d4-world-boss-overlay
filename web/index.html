@@ -101,21 +101,35 @@
 
     #update-banner {
         display: none;
-        background: #1a1a2e;
-        border: 1px solid #f59e0b;
-        border-radius: 6px;
+        background: rgba(20, 0, 0, 0.92);
+        border-top: 1px solid #f59e0b;
         color: #f59e0b;
         font-size: 11px;
         font-family: 'Consolas', monospace;
         font-weight: bold;
-        padding: 4px 10px;
-        cursor: pointer;
-        text-align: center;
+        padding: 3px 6px;
         white-space: nowrap;
         -webkit-app-region: no-drag;
         animation: fadeSlide 0.4s ease;
+        box-sizing: border-box;
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
     }
-    #update-banner:hover { background: #2a2a4e; }
+    #update-banner-text { flex: 1; text-align: center; cursor: pointer; }
+    #update-banner-text:hover { text-decoration: underline; }
+    #update-banner-close {
+        color: #a16207;
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 2px;
+        -webkit-app-region: no-drag;
+        flex-shrink: 0;
+    }
+    #update-banner-close:hover { color: #f59e0b; }
     @keyframes fadeSlide {
         from { opacity: 0; transform: translateY(-4px); }
         to   { opacity: 1; transform: translateY(0); }
@@ -124,7 +138,7 @@
 </style>
 </head>
 <body>
-
+<div id="app-container" style="display: flex; flex-direction: column; width: fit-content;">
 <div class="bar" id="main-bar">
     <div class="logo-container" ondblclick="toggleMini()" onclick="toggleMini()">
         <img src="../logo.png" class="logo" alt="Logo">
@@ -152,7 +166,11 @@
     </div>
 </div>
 
-<div id="update-banner" onclick="openUpdateLink()"></div>
+<div id="update-banner">
+    <span id="update-banner-text" onclick="openUpdateLink()"></span>
+    <span id="update-banner-close" onclick="closeBanner()" title="Dismiss">✕</span>
+</div>
+</div>
 
 <script>
     let config = {};
@@ -193,7 +211,8 @@
         document.getElementById('main-bar').style.height = barH + 'px';
         document.getElementById('main-bar').style.borderRadius = '6px'; // Keep it rectangular
         setTimeout(() => {
-            if (window.electronAPI) window.electronAPI.resizeWindow(document.getElementById('main-bar').offsetWidth + 10, Math.round(barH) + 4);
+            const container = document.getElementById('app-container');
+            if (window.electronAPI && container) window.electronAPI.resizeWindow(container.offsetWidth + 10, Math.round(barH) + 4);
         }, 10);
 
         const show_wb = config.show_boss !== false;
@@ -233,7 +252,9 @@
 
         // Resize the window dynamically ONLY if width changed
         setTimeout(() => {
-            const w = document.getElementById('main-bar').offsetWidth + 10;
+            const container = document.getElementById('app-container');
+            if (!container) return;
+            const w = container.offsetWidth + 10;
             if (window.lastWidth !== w) {
                 window.lastWidth = w;
                 if (window.electronAPI) window.electronAPI.resizeWindow(w);
@@ -297,6 +318,21 @@
         }
     }
 
+    function closeBanner() {
+        const banner = document.getElementById('update-banner');
+        if (banner) {
+            banner.style.display = 'none';
+            setTimeout(() => {
+                const container = document.getElementById('app-container');
+                const bar = document.getElementById('main-bar');
+                if (window.electronAPI && container && bar) {
+                    window.lastWidth = container.offsetWidth + 10;
+                    window.electronAPI.resizeWindow(window.lastWidth, bar.offsetHeight + 4);
+                }
+            }, 10);
+        }
+    }
+
     function toggleMini() {
         if (document.body.classList.contains('locked')) return;
         miniMode = !miniMode;
@@ -335,14 +371,20 @@
 
             window.electronAPI.onUpdateAvailable((data) => {
                 const banner = document.getElementById('update-banner');
-                const bar = document.getElementById('main-bar');
-                if (banner && bar) {
+                if (banner) {
                     window._updateUrl = data.url;
-                    banner.textContent = `⬆ New version ${data.version} available — click to download`;
-                    banner.style.width = bar.offsetWidth + 'px';
-                    banner.style.display = 'block';
-                    // Expand window height to fit banner below the bar
-                    if (window.electronAPI) window.electronAPI.resizeWindow(bar.offsetWidth + 10, bar.offsetHeight + 28);
+                    // remove "v" if already present in tag
+                    const verText = data.version.startsWith('v') ? data.version : 'v' + data.version;
+                    document.getElementById('update-banner-text').textContent = `⬆ ${verText} available — click to update`;
+                    banner.style.display = 'flex';
+                    setTimeout(() => {
+                        const container = document.getElementById('app-container');
+                        const bar = document.getElementById('main-bar');
+                        if (window.electronAPI && container && bar) {
+                            window.lastWidth = container.offsetWidth + 10;
+                            window.electronAPI.resizeWindow(window.lastWidth, bar.offsetHeight + 24);
+                        }
+                    }, 10);
                 }
             });
         }

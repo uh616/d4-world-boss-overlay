@@ -9,6 +9,8 @@ Data is pulled from [helltides.com](https://helltides.com).
 [![GitHub release](https://img.shields.io/github/v/release/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=blue)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=uh616.d4-world-boss-overlay&style=flat-square&color=red)](https://github.com/uh616/d4-world-boss-overlay)
 
+![Diablo 4 Overlay Screenshot](screenshot.png)
+
 ---
 
 ## ⬇️ Download
@@ -19,7 +21,7 @@ Data is pulled from [helltides.com](https://helltides.com).
 
 ## 🚀 Installation & Usage
 
-1. Download **`D4-Overlay-2.0.0.exe`** from the latest [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest).
+1. Download **`D4 Overlay 2.0.1.exe`** from the latest [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest).
 2. Run it! It's a completely portable executable, so you can place it anywhere (e.g., your Desktop) without installing anything.
 3. The overlay will appear in the top-left corner of your screen. You can grab it by the bar to drag it anywhere.
 
@@ -55,6 +57,7 @@ A **sound alert** plays automatically before events spawn (fully customizable vi
   - **Volume Control**: Change the volume of the alert sounds via a slider.
   - **Event Toggles**: Show or hide World Boss, Helltide, and Legion timers independently.
   - *All settings are auto-saved instantly.*
+- **Update Notifications**: The overlay automatically checks for new releases on GitHub and displays a banner when an update is available.
 - **Custom Sounds**: Place your own `alert.wav` next to the `.exe` to use a custom sound!
 
 ---
