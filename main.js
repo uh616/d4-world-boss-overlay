@@ -346,6 +346,8 @@ ipcMain.on('test-sound', () => {
 
 const API_URL = "https://helltides.com/api/schedule";
 
+let cachedApiData = null;
+
 async function fetchAPI() {
     try {
         const response = await fetch(API_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }});
@@ -388,8 +390,10 @@ async function fetchAPI() {
 
         const legion   = getNext(data.legion, "legion");
 
+        cachedApiData = { boss, helltide, legion };
+
         if (overlayWindow) {
-            overlayWindow.webContents.send('api-update', { boss, helltide, legion });
+            overlayWindow.webContents.send('api-update', cachedApiData);
         }
     } catch (e) { console.error("Fetch API Error:", e); }
 }
