@@ -134,6 +134,14 @@ function toggleLock() {
 }
 
 app.whenReady().then(() => {
+    // Start local server for OBS Browser Source
+    const http = require('http');
+    http.createServer((req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(cachedApiData || {}));
+    }).listen(4321).on('error', (e) => console.log('Local server port in use', e));
+
     createOverlay();
     createSettings();
 

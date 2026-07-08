@@ -400,13 +400,15 @@
 
             async function fetchApi() {
                 try {
-                    const res = await fetch('https://helltides.com/api/schedule');
+                    const res = await fetch('http://localhost:4321');
                     cachedApiData = await res.json();
                     renderData();
-                } catch(e) { console.error('Fetch error', e); }
+                } catch(e) { 
+                    // If local server is down, we silently wait
+                }
             }
             fetchApi();
-            setInterval(fetchApi, 60000); // Update every minute
+            setInterval(fetchApi, 1000); // Fetch locally every 1 second for perfect sync
         }
         
         // Timer tick to update seconds visually every second without hitting API
