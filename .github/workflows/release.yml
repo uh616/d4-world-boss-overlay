@@ -51,6 +51,6 @@ jobs:
             - **Fully customizable hotkeys** (works regardless of keyboard layout)
             - **Mini Mode**: click the logo to collapse to icon-only
             - Background retained when overlay is locked (click-through mode)
-          files: dist/D4 Overlay ${{ github.ref_name }}.exe
+          files: dist/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
