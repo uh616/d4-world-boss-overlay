@@ -44,13 +44,10 @@ jobs:
             3. If Windows Defender shows a warning, click **"More info" → "Run anyway"**
 
             ### ✨ What's new in ${{ github.ref_name }}
-            - Completely rewritten on **Electron** — faster, smoother, more reliable
-            - **Auto-Hide**: overlay hides when you switch out of Diablo 4
-            - **Scale slider**: adjust overlay size from tiny to large
-            - **Volume control**: set alert volume independently
-            - **Fully customizable hotkeys** (works regardless of keyboard layout)
-            - **Mini Mode**: click the logo to collapse to icon-only
-            - Background retained when overlay is locked (click-through mode)
+            - **Interactive Helltide Map**: Click the map icon to open an interactive, glassmorphic map showing real-time locations of Helltide Mystery Chests, Hellwyrms, Events, Rituals, and Kixxarth.
+            - **Theming**: The map automatically syncs its color theme with your overlay settings (Crimson, Neon Blue, Gold).
+            - **Smart Window**: The map remembers its position and size between sessions.
+            - All markers and event coordinates are updated and accurately matched to Helltides.com.
           files: dist/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
