@@ -154,6 +154,9 @@ app.whenReady().then(() => {
     });
 
     startWatcher();
+
+    // Check for updates 10 seconds after launch (non-blocking)
+    setTimeout(checkForUpdates, 10000);
 });
 
 app.on('window-all-closed', () => {
@@ -161,6 +164,36 @@ app.on('window-all-closed', () => {
     // Settings window hides instead of closing, so this only fires on true quit
     if (process.platform !== 'darwin') app.quit();
 });
+
+// ─── Update Check ─────────────────────────────────────────────────────────
+
+async function checkForUpdates() {
+    try {
+        const res = await fetch('https://api.github.com/repos/uh616/d4-world-boss-overlay/releases/latest', {
+            headers: { 'User-Agent': 'D4-Overlay-UpdateCheck' }
+        });
+        if (!res.ok) return;
+        const release = await res.json();
+        const latestTag = release.tag_name || ''; // e.g. "v2.0.1"
+        const currentTag = 'v' + app.getVersion();  // e.g. "v2.0.0"
+
+        // Simple semver comparison: strip "v" and split by "."
+        const parse = (v) => v.replace(/^v/, '').split('.').map(Number);
+        const [lMaj, lMin, lPat] = parse(latestTag);
+        const [cMaj, cMin, cPat] = parse(currentTag);
+
+        const isNewer = lMaj > cMaj || (lMaj === cMaj && lMin > cMin) || (lMaj === cMaj && lMin === cMin && lPat > cPat);
+
+        if (isNewer && overlayWindow) {
+            overlayWindow.webContents.send('update-available', {
+                version: latestTag,
+                url: release.html_url
+            });
+        }
+    } catch(e) {
+        // Silently ignore — update check should never crash the app
+    }
+}
 
 // ─── IPC Handlers ──────────────────────────────────────────────────────────
 
@@ -232,6 +265,10 @@ ipcMain.on('close-overlay', () => {
 
 ipcMain.on('open-support', () => {
     shell.openExternal("https://boosty.to/6i6");
+});
+
+ipcMain.on('open-url', (event, url) => {
+    if (url && url.startsWith('https://')) shell.openExternal(url);
 });
 
 ipcMain.handle('browse-sound', async () => {

@@ -97,10 +97,35 @@
     }
     .locked .controls { display: none; }
 
+    #update-banner {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        background: #1a1a2e;
+        border-bottom: 1px solid #f59e0b;
+        color: #f59e0b;
+        font-size: 11px;
+        font-family: 'Consolas', monospace;
+        font-weight: bold;
+        padding: 3px 10px;
+        cursor: pointer;
+        text-align: center;
+        z-index: 9999;
+        white-space: nowrap;
+        -webkit-app-region: no-drag;
+        animation: fadeSlide 0.4s ease;
+    }
+    #update-banner:hover { background: #2a2a4e; }
+    @keyframes fadeSlide {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
 </style>
 </head>
 <body>
 
+<div id="update-banner" onclick="openUpdateLink()"></div>
 <div class="bar" id="main-bar">
     <div class="logo-container" ondblclick="toggleMini()" onclick="toggleMini()">
         <img src="../logo.png" class="logo" alt="Logo">
@@ -265,6 +290,12 @@
         if(window.electronAPI) window.electronAPI.closeOverlay();
     }
 
+    function openUpdateLink() {
+        if (window._updateUrl && window.electronAPI) {
+            window.electronAPI.openUrl(window._updateUrl);
+        }
+    }
+
     function toggleMini() {
         if (document.body.classList.contains('locked')) return;
         miniMode = !miniMode;
@@ -298,6 +329,18 @@
                     audio.play().catch(e => console.error("Audio playback error:", e));
                 } catch(e) {
                     console.error("Audio creation error:", e);
+                }
+            });
+
+            window.electronAPI.onUpdateAvailable((data) => {
+                const banner = document.getElementById('update-banner');
+                if (banner) {
+                    window._updateUrl = data.url;
+                    banner.textContent = `⬆ New version ${data.version} available — click to download`;
+                    banner.style.display = 'block';
+                    // Expand window height to fit banner
+                    const bar = document.getElementById('main-bar');
+                    if (window.electronAPI) window.electronAPI.resizeWindow(bar.offsetWidth + 10, bar.offsetHeight + 22);
                 }
             });
         }

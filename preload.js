@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld(
     onApiUpdate: (callback) => ipcRenderer.on('api-update', (event, data) => callback(data)),
     onConfigChanged: (callback) => ipcRenderer.on('config-changed', (event, data) => callback(data)),
     onLockChanged: (callback) => ipcRenderer.on('lock-changed', (event, isLocked) => callback(isLocked)),
-    onPlayAudio: (callback) => ipcRenderer.on('play-audio', (event, data) => callback(data))
+    onPlayAudio: (callback) => ipcRenderer.on('play-audio', (event, data) => callback(data)),
+    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
+    openUrl: (url) => ipcRenderer.send('open-url', url)
   }
 );
