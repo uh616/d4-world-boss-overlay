@@ -21,7 +21,7 @@ Data is pulled from [helltides.com](https://helltides.com).
 
 ## 🚀 Installation & Usage
 
-1. Download **`D4 Overlay 2.0.1.exe`** from the latest [Release](https://github.com/uh616/d4-world-boss-overlay/releases/latest).
+1. Download the latest **`D4-Overlay-vX.X.X.exe`** from the [Releases page](https://github.com/uh616/d4-world-boss-overlay/releases/latest).
 2. Run it! It's a completely portable executable, so you can place it anywhere (e.g., your Desktop) without installing anything.
 3. The overlay will appear in the top-left corner of your screen. You can grab it by the bar to drag it anywhere.
 
