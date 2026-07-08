@@ -1,6 +1,6 @@
 {
   "name": "world_boss_diablo_4",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A lightweight always-on-top overlay for Diablo 4 that shows a live countdown to the next **World Boss** and the current **Helltide** status — without ever leaving the game.",
   "main": "main.js",
   "scripts": {
@@ -20,11 +20,6 @@
     ],
     "directories": {
       "output": "dist"
-    },
-    "publish": {
-      "provider": "github",
-      "draft": false,
-      "prerelease": false
     }
   },
   "repository": {

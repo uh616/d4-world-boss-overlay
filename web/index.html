@@ -24,8 +24,10 @@
         -webkit-user-select: none;
         height: 100vh;
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-start;
         padding: 1px;
+        gap: 2px;
     }
 
     .bar {
@@ -99,25 +101,23 @@
 
     #update-banner {
         display: none;
-        position: fixed;
-        top: 0; left: 0; right: 0;
         background: #1a1a2e;
-        border-bottom: 1px solid #f59e0b;
+        border: 1px solid #f59e0b;
+        border-radius: 6px;
         color: #f59e0b;
         font-size: 11px;
         font-family: 'Consolas', monospace;
         font-weight: bold;
-        padding: 3px 10px;
+        padding: 4px 10px;
         cursor: pointer;
         text-align: center;
-        z-index: 9999;
         white-space: nowrap;
         -webkit-app-region: no-drag;
         animation: fadeSlide 0.4s ease;
     }
     #update-banner:hover { background: #2a2a4e; }
     @keyframes fadeSlide {
-        from { opacity: 0; transform: translateY(-6px); }
+        from { opacity: 0; transform: translateY(-4px); }
         to   { opacity: 1; transform: translateY(0); }
     }
 
@@ -125,7 +125,6 @@
 </head>
 <body>
 
-<div id="update-banner" onclick="openUpdateLink()"></div>
 <div class="bar" id="main-bar">
     <div class="logo-container" ondblclick="toggleMini()" onclick="toggleMini()">
         <img src="../logo.png" class="logo" alt="Logo">
@@ -152,6 +151,8 @@
         <div class="btn" id="btn-close" onclick="closeApp()" title="Close">✕</div>
     </div>
 </div>
+
+<div id="update-banner" onclick="openUpdateLink()"></div>
 
 <script>
     let config = {};
@@ -334,13 +335,14 @@
 
             window.electronAPI.onUpdateAvailable((data) => {
                 const banner = document.getElementById('update-banner');
-                if (banner) {
+                const bar = document.getElementById('main-bar');
+                if (banner && bar) {
                     window._updateUrl = data.url;
                     banner.textContent = `⬆ New version ${data.version} available — click to download`;
+                    banner.style.width = bar.offsetWidth + 'px';
                     banner.style.display = 'block';
-                    // Expand window height to fit banner
-                    const bar = document.getElementById('main-bar');
-                    if (window.electronAPI) window.electronAPI.resizeWindow(bar.offsetWidth + 10, bar.offsetHeight + 22);
+                    // Expand window height to fit banner below the bar
+                    if (window.electronAPI) window.electronAPI.resizeWindow(bar.offsetWidth + 10, bar.offsetHeight + 28);
                 }
             });
         }
