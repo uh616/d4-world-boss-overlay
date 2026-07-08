@@ -135,6 +135,26 @@
         to   { opacity: 1; transform: translateY(0); }
     }
 
+    .map-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(220, 38, 38, 0.4);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #f87171 !important;
+        transition: all 0.2s;
+    }
+    .map-btn:hover {
+        background: rgba(220, 38, 38, 0.3);
+        border-color: #ef4444;
+        color: #fff !important;
+    }
+    .map-btn svg {
+        width: 14px;
+        height: 14px;
+    }
 </style>
 </head>
 <body>
@@ -165,6 +185,10 @@
     </div>
 
     <div class="controls">
+        <div class="btn map-btn" onclick="toggleMap()" title="Open Helltide Map">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            <span>Map</span>
+        </div>
         <div class="btn" id="btn-settings" onclick="openSettings()" title="Settings">⚙</div>
         <div class="btn" id="btn-close" onclick="closeApp()" title="Close">✕</div>
     </div>
@@ -310,6 +334,10 @@
 
     function openSettings() {
         if(window.electronAPI) window.electronAPI.openSettings();
+    }
+
+    function toggleMap() {
+        if(window.electronAPI) window.electronAPI.toggleMap();
     }
 
     function closeApp() {

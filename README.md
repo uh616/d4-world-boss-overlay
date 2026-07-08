@@ -10,6 +10,7 @@ Data is pulled from [helltides.com](https://helltides.com).
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=uh616.d4-world-boss-overlay&style=flat-square&color=red)](https://github.com/uh616/d4-world-boss-overlay)
 
 ![Diablo 4 Overlay Screenshot](screenshot_v2.0.2.png)
+![Helltide Map Screenshot](map.png)
 
 ---
 
@@ -48,15 +49,16 @@ A **sound alert** plays automatically before events spawn (fully customizable vi
 
 ## 🌟 Features
 
+- **Interactive Helltide Map**: Click the map icon to open an interactive, glassmorphic map showing real-time locations of Helltide Mystery Chests, Hellwyrms, Events, Rituals, and Kixxarth.
 - **Always on Top**: Transparent, borderless window that stays permanently above Diablo 4 using Electron's `screen-saver` level.
 - **Auto-Hide**: Automatically hides the overlay when you Alt-Tab out of Diablo 4, keeping your desktop clean.
 - **Lock & Click-through**: Press a fully customizable hotkey (default `Ctrl+L`) to lock the overlay in place and make all mouse clicks pass straight through it.
 - **Smart Settings Menu**: 
-  - **Themes**: Choose between Crimson, Gold, or Neon Blue.
+  - **Themes**: Choose between Crimson, Gold, or Neon Blue. The theme syncs automatically to both the overlay and the interactive map!
   - **Scale & Opacity**: Adjust text size (from tiny UI to large text) and window transparency.
   - **Volume Control**: Change the volume of the alert sounds via a slider.
   - **Event Toggles**: Show or hide World Boss, Helltide, and Legion timers independently.
-  - *All settings are auto-saved instantly.*
+  - *All settings, window positions, and sizes are auto-saved instantly.*
 - **Update Notifications**: The overlay automatically checks for new releases on GitHub and displays a banner when an update is available.
 - **Custom Sounds**: Place your own `alert.wav` next to the `.exe` to use a custom sound!
 

@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld(
     onLockChanged: (callback) => ipcRenderer.on('lock-changed', (event, isLocked) => callback(isLocked)),
     onPlayAudio: (callback) => ipcRenderer.on('play-audio', (event, data) => callback(data)),
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
-    openUrl: (url) => ipcRenderer.send('open-url', url)
+    openUrl: (url) => ipcRenderer.send('open-url', url),
+    toggleMap: () => ipcRenderer.send('toggle-map'),
+    closeMap: () => ipcRenderer.send('close-map'),
   }
 );

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Helltide Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="map-data.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:        rgba(10, 10, 15, 0.6);
+  --surface:   rgba(17, 17, 24, 0.4);
+  --surface2:  rgba(24, 24, 31, 0.5);
+  --surface3:  rgba(31, 31, 40, 0.6);
+  --border:    rgba(192, 57, 43, 0.4);
+  --border2:   rgba(255,255,255,0.08);
+  --red:       #c0392b;
+  --red2:      #e74c3c;
+  --gold:      #d4a843;
+  --text:      #e8e8f0;
+  --text2:     #a0a0b8;
+  --text3:     #606078;
+  /* marker colors matching helltides.com */
+  --m-mystery:   #3b9ddd;
+  --m-hellwyrm:  #e05c4a;
+  --m-event:     #e08c2a;
+  --m-ritual:    #8e63bf;
+  --m-kixxarth:  #d4b800;
+}
+
+html, body { width:100%; height:100%; background:transparent; color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; user-select:none; }
+
+body {
+  background: var(--bg);
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+
+/* ─ Titlebar ─────────────────────────────────────────────── */
+#titlebar {
+  display:flex; align-items:center; justify-content:space-between;
+  height:36px; padding:0 10px 0 12px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  -webkit-app-region:drag;
+  flex-shrink:0;
+}
+.tb-left { display:flex; align-items:center; gap:8px; }
+.tb-icon { font-size:15px; }
+.tb-title { font-size:12px; font-weight:600; color:var(--red2); letter-spacing:.4px; text-transform:uppercase; }
+.tb-close {
+  -webkit-app-region:no-drag; cursor:pointer;
+  width:26px; height:26px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text3); font-size:14px;
+  transition:background .15s, color .15s;
+}
+.tb-close:hover { background:rgba(231,76,60,.2); color:var(--red2); }
+
+/* ─ Layout ───────────────────────────────────────────────── */
+#layout { display:flex; height:calc(100% - 36px); }
+
+/* ─ Map ──────────────────────────────────────────────────── */
+#map-wrap { flex:1; position:relative; background:transparent; }
+#map { width:100%; height:100%; }
+
+.leaflet-container { background:transparent !important; }
+.leaflet-control-zoom {
+  border:1px solid var(--border2) !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.6) !important;
+  margin-left:10px !important; margin-top:10px !important;
+}
+.leaflet-control-zoom a {
+  background:var(--surface) !important; color:var(--text2) !important;
+  border-color:var(--border2) !important;
+  width:28px !important; height:28px !important;
+  line-height:28px !important; font-size:16px !important;
+  font-weight:700; transition:color .15s, background .15s;
+}
+.leaflet-control-zoom a:hover { background:var(--surface2) !important; color:var(--text) !important; }
+.leaflet-control-zoom-in { border-radius:5px 5px 0 0 !important; }
+.leaflet-control-zoom-out { border-radius:0 0 5px 5px !important; }
+
+/* marker circles */
+.mk {
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .12s;
+  cursor:pointer;
+  background: transparent;
+  border: none;
+}
+.mk:hover { transform:scale(1.25) !important; }
+.mk img { width:100%; height:100%; pointer-events:none; }
+
+/* popup */
+.leaflet-popup-content-wrapper {
+  background:var(--surface2) !important; color:var(--text) !important;
+  border:1px solid var(--border2) !important; border-radius:7px !important;
+  box-shadow:0 4px 20px rgba(0,0,0,.7) !important;
+  font-family:'Inter',sans-serif !important; font-size:11px !important; padding:0 !important;
+}
+.leaflet-popup-content { margin:8px 12px !important; font-size:11px; font-weight:500; }
+.leaflet-popup-tip-container { display:none; }
+.leaflet-popup-close-button { display:none !important; }
+
+/* ─ Sidebar ──────────────────────────────────────────────── */
+#sidebar {
+  width:195px; flex-shrink:0;
+  background:var(--surface);
+  border-left:1px solid var(--border);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+
+.sb-inner { flex:1; overflow-y:auto; padding:12px 10px; display:flex; flex-direction:column; gap:14px; }
+.sb-inner::-webkit-scrollbar { width:4px; }
+.sb-inner::-webkit-scrollbar-track { background:transparent; }
+.sb-inner::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* Section headers */
+.sh {
+  font-size:10px; font-weight:600; color:var(--text3);
+  text-transform:uppercase; letter-spacing:.9px;
+  margin-bottom:7px;
+}
+
+/* Helltide status */
+#ht-box {
+  border-radius:7px; padding:9px 10px;
+  background:var(--surface2); border:1px solid var(--border2);
+}
+#ht-box.active { border-color:rgba(192,57,43,.5); background:rgba(192,57,43,.08); }
+.ht-lbl { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
+#ht-val { font-size:13px; font-weight:600; color:var(--text2); }
+#ht-val.active { color:var(--red2); }
+
+/* Zone select */
+#zone-sel {
+  width:100%;
+  background:var(--surface2); border:1px solid var(--border2);
+  border-radius:6px; color:var(--text);
+  font-family:'Inter',sans-serif; font-size:12px;
+  padding:7px 28px 7px 9px; cursor:pointer; outline:none;
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23606078'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 8px center;
+  transition:border-color .15s;
+}
+#zone-sel:hover, #zone-sel:focus { border-color:rgba(192,57,43,.6); }
+#zone-sel option { background:var(--surface2); color:var(--text); }
+
+/* Filter buttons */
+.filter-grid { display:flex; flex-direction:column; gap:5px; }
+
+.flt {
+  display:flex; align-items:center; gap:9px;
+  padding:7px 10px; border-radius:7px;
+  border:1px solid var(--border2); cursor:pointer;
+  transition:background .15s, border-color .15s, opacity .15s;
+  font-size:12px; font-weight:500;
+}
+.flt:hover { background:var(--surface3); }
+.flt.on  { background:var(--surface3); }
+.flt.off { opacity:.35; }
+
+.flt-ico {
+  width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; background:transparent !important; border:none !important;
+}
+.flt-ico img { width:100%; height:100%; object-fit:contain; }
+
+.fi-mystery  { }
+.fi-hellwyrm { background:rgba(74,222,128,0.2) !important; border:2px solid rgba(22,163,74,0.9) !important; }
+.fi-event    { background:rgba(251,146,60,0.2) !important; border:2px solid rgba(251,146,60,0.8) !important; }
+.fi-ritual   { }
+.fi-kixxarth { }
+
+.flt-count {
+  margin-left:auto; font-size:10px; font-weight:600;
+  background:rgba(255,255,255,.07); border-radius:4px;
+  padding:1px 5px; color:var(--text3);
+}
+
+/* Filter reset */
+.filter-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+.reset-btn {
+  background:none; border:none; color:var(--text3); cursor:pointer;
+  font-size:13px; transition:color .15s; padding:0;
+}
+.reset-btn:hover { color:var(--text); }
+
+/* Legend */
+.legend-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text2); margin-bottom:3px; }
+.ld { width:12px; height:12px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,0.5); }
+.ld-img { width:16px; height:16px; flex-shrink:0; object-fit:contain; }
+
+/* Bottom bar */
+#sb-bottom {
+  padding:8px 10px; border-top:1px solid var(--border2);
+  font-size:10px; color:var(--text3); text-align:center; flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div class="tb-left">
+    <span class="tb-icon">🔥</span>
+    <span class="tb-title">Helltide Map</span>
+  </div>
+  <div class="tb-close" id="btn-close">✕</div>
+</div>
+
+<!-- Layout -->
+<div id="layout">
+  <div id="map-wrap"><div id="map"></div></div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-inner">
+
+      <!-- Helltide status -->
+      <div>
+        <div class="sh">Helltide Status</div>
+        <div id="ht-box">
+          <div class="ht-lbl">Next / Active</div>
+          <div id="ht-val">Checking...</div>
+        </div>
+      </div>
+
+      <!-- Zone -->
+      <div>
+        <div class="sh">Zone Select</div>
+        <select id="zone-sel">
+          <option value="fractured-peaks">Fractured Peaks</option>
+          <option value="hawezar">Hawezar</option>
+          <option value="scosglen">Scosglen</option>
+          <option value="dry-steppes">Dry Steppes</option>
+          <option value="kehjistan">Kehjistan</option>
+          <option value="nahantu">Nahantu</option>
+          <option value="skovos">Skovos Isles</option>
+        </select>
+      </div>
+
+      <!-- Filters -->
+      <div>
+        <div class="filter-head">
+          <div class="sh" style="margin-bottom:0">Map Filter</div>
+          <button class="reset-btn" id="btn-reset" title="Reset all">↺</button>
+        </div>
+        <div class="filter-grid">
+          <div class="flt on" data-f="mystery">
+            <div class="flt-ico fi-mystery"><img src="https://helltides.com/images/markers/mystery.png"></div>
+            <span>Mystery</span>
+            <span class="flt-count" id="cnt-mystery">0</span>
+          </div>
+          <div class="flt on" data-f="hellwyrms">
+            <div class="flt-ico fi-hellwyrm"></div>
+            <span>Hellwyrms</span>
+            <span class="flt-count" id="cnt-hellwyrms">0</span>
+          </div>
+          <div class="flt on" data-f="events">
+            <div class="flt-ico fi-event"></div>
+            <span>Events</span>
+            <span class="flt-count" id="cnt-events">0</span>
+          </div>
+          <div class="flt on" data-f="rituals">
+            <div class="flt-ico fi-ritual"><img src="https://helltides.com/images/markers/accursed-ritual.png"></div>
+            <span>Rituals</span>
+            <span class="flt-count" id="cnt-rituals">0</span>
+          </div>
+          <div class="flt on" data-f="kixxarth">
+            <div class="flt-ico fi-kixxarth"><img src="https://helltides.com/images/boss.png"></div>
+            <span>Kixxarth</span>
+            <span class="flt-count" id="cnt-kixxarth">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sh">Legend</div>
+        <div class="legend-row"><img src="https://helltides.com/images/markers/mystery.png" class="ld-img"> Mystery Chest</div>
+        <div class="legend-row"><div class="ld" style="background:rgba(74,222,128,0.2);border:2px solid rgba(22,163,74,0.9);"></div> Hellwyrm</div>
+        <div class="legend-row"><div class="ld" style="background:rgba(251,146,60,0.2);border:2px solid rgba(251,146,60,0.8);"></div> Event</div>
+        <div class="legend-row"><img src="https://helltides.com/images/markers/accursed-ritual.png" class="ld-img"> Ritual</div>
+        <div class="legend-row"><img src="https://helltides.com/images/boss.png" class="ld-img"> Kixxarth</div>
+      </div>
+
+    </div>
+
+    <div id="sb-bottom">Hover marker for details</div>
+  </div>
+</div>
+
+<script>
+// ─── Markers matching helltides.com exact code ────────────────────────────────
+const MARKER_SVG = {
+  mystery: `<img src="https://helltides.com/images/markers/mystery.png" style="width:100%;height:100%;object-fit:contain;">`,
+  hellwyrms: ``,
+  events: ``,
+  rituals: `<img src="https://helltides.com/images/markers/accursed-ritual.png" style="width:100%;height:100%;object-fit:contain;">`,
+  kixxarth: `<img src="https://helltides.com/images/boss.png" style="width:100%;height:100%;object-fit:contain;">`,
+};
+
+const COLORS = {
+  mystery:   'transparent',
+  hellwyrms: 'rgba(74,222,128,0.2)',
+  events:    'rgba(251,146,60,0.2)',
+  rituals:   'transparent',
+  kixxarth:  'transparent',
+};
+
+const BORDERS = {
+  hellwyrms: '3px solid rgba(22,163,74,0.9)',
+  events:    '3px solid rgba(251,146,60,0.8)'
+};
+
+const SIZES = {
+  mystery:28, hellwyrms:32, events:30, rituals:32, kixxarth:28
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let map, imgOverlay;
+let layers = {};
+let filters = new Set(['mystery','hellwyrms','events','rituals','kixxarth']);
+let zone = 'fractured-peaks';
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2, maxZoom: 4,
+    zoomControl: true,
+    attributionControl: false,
+    center: [50,50], zoom: 0,
+  });
+  map.zoomControl.setPosition('topleft');
+  loadZone(zone);
+}
+
+// ─── Load zone ────────────────────────────────────────────────────────────────
+function loadZone(zoneId) {
+  const zd = MAP_DATA[zoneId];
+  if (!zd) return;
+
+  if (imgOverlay) imgOverlay.remove();
+  Object.values(layers).forEach(l => l.remove());
+  layers = {};
+
+  const bounds = [[0,0],[100,100]];
+
+  // Try zone image first
+  const img = new Image();
+  img.onload = () => {
+    const h = img.naturalHeight || 100;
+    const w = img.naturalWidth || 100;
+    const bounds = [[0,0],[h, w]];
+    imgOverlay = L.imageOverlay(img.src, bounds, { opacity: 1 }).addTo(map);
+    map.fitBounds(bounds);
+    renderMarkers(zd, w, h);
+  };
+  img.onerror = () => {
+    // Fallback: canvas bg
+    const c = document.createElement('canvas');
+    c.width = 1200; c.height = 800;
+    const ctx = c.getContext('2d');
+
+    // background gradient
+    const g = ctx.createLinearGradient(0,0,1200,800);
+    g.addColorStop(0,'#10101a'); g.addColorStop(1,'#0a0a14');
+    ctx.fillStyle = g; ctx.fillRect(0,0,1200,800);
+
+    // organic terrain blobs
+    const blobs = [
+      { x:300, y:200, r:220, col:'#1a1a2e' },
+      { x:600, y:350, r:300, col:'#160a0a' },
+      { x:900, y:200, r:200, col:'#1a1424' },
+      { x:250, y:500, r:180, col:'#0d1a0d' },
+      { x:700, y:550, r:250, col:'#1a1010' },
+      { x:1050, y:600, r:200, col:'#141424' },
+    ];
+    blobs.forEach(b => {
+      const bg = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+      bg.addColorStop(0,b.col+'ff');
+      bg.addColorStop(1,b.col+'00');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    // noise dots
+    for (let i=0;i<2000;i++) {
+      const a = Math.random()*0.06;
+      ctx.fillStyle = `rgba(200,150,100,${a})`;
+      ctx.fillRect(Math.random()*1200,Math.random()*800,Math.random()*3,Math.random()*3);
+    }
+
+    // zone name
+    ctx.fillStyle='rgba(255,255,255,0.03)';
+    ctx.font='bold 80px serif';
+    ctx.textAlign='center';
+    ctx.fillText(zd.label,600,420);
+
+    // vignette
+    const vg = ctx.createRadialGradient(600,400,150,600,400,650);
+    vg.addColorStop(0,'transparent');
+    vg.addColorStop(1,'rgba(0,0,0,0.65)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,1200,800);
+
+    const bounds = [[0,0],[800, 1200]];
+    imgOverlay = L.imageOverlay(c.toDataURL(), bounds, {opacity:1}).addTo(map);
+    map.fitBounds(bounds);
+    renderMarkers(zd, 1200, 800);
+  };
+  img.src = zd.imgUrl;
+}
+
+// ─── Render markers ───────────────────────────────────────────────────────────
+function renderMarkers(zd, w, h) {
+  const types = Object.keys(COLORS);
+  types.forEach(type => {
+    const pts = zd.markers[type] || [];
+    const lg = L.layerGroup();
+    const sz = SIZES[type];
+    const col = COLORS[type];
+    const bdr = BORDERS[type] ? `border:${BORDERS[type]};` : `border:none;`;
+    pts.forEach(pt => {
+      const bgStyle = col === 'transparent' ? 'background:transparent;box-shadow:none;border:none;' : `background:${col};${bdr}box-shadow:0 0 10px rgba(0,0,0,0.5);`;
+      const icon = L.divIcon({
+        className:'',
+        html:`<div class="mk" style="width:${sz}px;height:${sz}px;${bgStyle}">${MARKER_SVG[type]}</div>`,
+        iconSize:[sz,sz], iconAnchor:[sz/2,sz/2], popupAnchor:[0,-sz/2]
+      });
+      const lat = pt.lat;
+      const lng = pt.lng;
+      const m = L.marker([lat, lng], {icon})
+        .bindPopup(`<b>${pt.label}</b>`,{closeButton:false,autoPan:false,offset:[0,-4]});
+      m.on('mouseover', function(){ this.openPopup(); });
+      m.on('mouseout',  function(){ this.closePopup(); });
+      lg.addLayer(m);
+    });
+
+    layers[type] = lg;
+    if (filters.has(type)) lg.addTo(map);
+
+    // Update counts
+    const el = document.getElementById('cnt-'+type);
+    if (el) el.textContent = pts.length;
+  });
+}
+
+// ─── Filter toggle ────────────────────────────────────────────────────────────
+function applyFilters() {
+  Object.entries(layers).forEach(([type,lg]) => {
+    if (filters.has(type)) { if(!map.hasLayer(lg)) lg.addTo(map); }
+    else { if(map.hasLayer(lg)) lg.remove(); }
+  });
+  document.querySelectorAll('.flt').forEach(el => {
+    const on = filters.has(el.dataset.f);
+    el.classList.toggle('on', on);
+    el.classList.toggle('off', !on);
+  });
+}
+
+document.querySelectorAll('.flt').forEach(el => {
+  el.addEventListener('click', () => {
+    const f = el.dataset.f;
+    filters.has(f) ? filters.delete(f) : filters.add(f);
+    applyFilters();
+  });
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  filters = new Set(Object.keys(COLORS));
+  applyFilters();
+});
+
+document.getElementById('zone-sel').addEventListener('change', e => {
+  zone = e.target.value;
+  loadZone(zone);
+});
+
+// ─── Close ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-close').addEventListener('click', () => {
+  if (window.electronAPI) window.electronAPI.closeMap();
+  else window.close();
+});
+
+// ─── Helltide status ──────────────────────────────────────────────────────────
+function renderHtStatus(data) {
+  const box = document.getElementById('ht-box');
+  const val = document.getElementById('ht-val');
+  if (!data || !data.helltide) {
+    val.textContent = 'No data'; val.className=''; box.className='';
+    return;
+  }
+  const now = Date.now()/1000;
+  const ht = data.helltide;
+  const end = ht.time + 55*60;
+  const rem = Math.max(0, end - now);
+  const next = Math.max(0, ht.time - now);
+  if (rem > 0 && ht.time <= now) {
+    const m=Math.floor(rem/60), s=Math.floor(rem%60);
+    val.textContent=`Active — ${m}m ${s.toString().padStart(2,'0')}s left`;
+    val.className='active'; box.className='active';
+  } else if (next > 0) {
+    const m=Math.floor(next/60), s=Math.floor(next%60);
+    val.textContent=`In ${m}m ${s.toString().padStart(2,'0')}s`;
+    val.className=''; box.className='';
+  } else {
+    val.textContent='Soon'; val.className='active'; box.className='active';
+  }
+}
+
+async function pollHt() {
+  try {
+    const r = await fetch('http://localhost:4321');
+    renderHtStatus(await r.json());
+  } catch(e){}
+}
+
+if (window.electronAPI) window.electronAPI.onApiUpdate(renderHtStatus);
+setInterval(pollHt, 5000);
+pollHt();
+
+// ─── Theming ────────────────────────────────────────────────────────────────────
+function applyConfig(cfg) {
+  if (!cfg || !cfg.theme) return;
+  const THEMES = {
+    "Default Crimson": {"wb": "#ffcc00", "active": "#ef4444", "idle": "#a1a1aa", "border": "#8b0000", "border2": "rgba(255,255,255,0.08)", "red2": "#e74c3c"},
+    "Neon Blue":       {"wb": "#38bdf8", "active": "#818cf8", "idle": "#94a3b8", "border": "#1e3a8a", "border2": "rgba(56,189,248,0.2)", "red2": "#38bdf8"},
+    "Gold":            {"wb": "#fde047", "active": "#f59e0b", "idle": "#d6d3d1", "border": "#b45309", "border2": "rgba(253,224,71,0.2)", "red2": "#fde047"}
+  };
+  const t = THEMES[cfg.theme] || THEMES["Default Crimson"];
+  document.documentElement.style.setProperty('--border', t.border);
+  document.documentElement.style.setProperty('--border2', t.border2);
+  document.documentElement.style.setProperty('--red2', t.red2);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+initMap();
+
+if (window.electronAPI) {
+  window.electronAPI.getConfig().then(c => applyConfig(JSON.parse(c)));
+  window.electronAPI.onConfigChanged(c => applyConfig(JSON.parse(c)));
+}
+
+</script>
+</body>
+</html>

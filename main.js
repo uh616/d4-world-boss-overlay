@@ -9,6 +9,7 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 let overlayWindow = null;
 let settingsWindow = null;
+let mapWindow = null;
 let isLocked = false;
 let config = {};
 
@@ -23,7 +24,8 @@ config = {
     "alert_minutes": 5, "sound_wb": true, "sound_ht": false, "sound_legion": false,
     "sound_file": "", "sound_volume": 100, "hotkey": "ctrl+l", "auto_hide": false,
     "theme": "Default Crimson", "show_boss": true, "show_helltide": true, "show_legion": true,
-    "opacity": 0.9, "pos_x": 0, "pos_y": 0, "language": "en", "font_size": 12
+    "opacity": 0.9, "pos_x": 0, "pos_y": 0, "language": "en", "font_size": 12,
+    "map_x": null, "map_y": null, "map_w": 820, "map_h": 540
 };
 
 function loadConfig() {
@@ -123,6 +125,56 @@ function createSettings() {
     // settingsWindow.webContents.openDevTools({ mode: 'detach' });
 }
 
+function createMapWindow() {
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+    const mapW = config.map_w || 820;
+    const mapH = config.map_h || 540;
+    const x = config.map_x !== null && config.map_x !== undefined ? config.map_x : Math.max(0, width - mapW - 20);
+    const y = config.map_y !== null && config.map_y !== undefined ? config.map_y : Math.max(0, height - mapH - 20);
+
+    mapWindow = new BrowserWindow({
+        width: mapW,
+        height: mapH,
+        x, y,
+        frame: false,
+        transparent: true,
+        resizable: true,
+        minWidth: 600,
+        minHeight: 400,
+        show: false,
+        alwaysOnTop: true,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+            webSecurity: false  // allow loading CDN scripts (leaflet)
+        }
+    });
+
+    mapWindow.loadFile(path.join(__dirname, 'web', 'map.html'));
+
+    mapWindow.on('close', (e) => {
+        e.preventDefault();
+        mapWindow.hide();
+    });
+
+    // Save position/size on move or resize
+    const saveMapBounds = () => {
+        if (!mapWindow) return;
+        const b = mapWindow.getBounds();
+        config.map_x = b.x;
+        config.map_y = b.y;
+        config.map_w = b.width;
+        config.map_h = b.height;
+        saveConfig();
+    };
+    mapWindow.on('moved', saveMapBounds);
+    mapWindow.on('resized', saveMapBounds);
+
+    mapWindow.setAlwaysOnTop(true, 'screen-saver');
+    // mapWindow.webContents.openDevTools({ mode: 'detach' });
+}
+
 function toggleLock() {
     isLocked = !isLocked;
     if (isLocked) {
@@ -144,6 +196,7 @@ app.whenReady().then(() => {
 
     createOverlay();
     createSettings();
+    createMapWindow();
 
     if (config.hotkey) {
         try {
@@ -212,8 +265,9 @@ ipcMain.handle('save-config', (event, key, value) => {
     config[key] = value;
     saveConfig();
 
-    // Broadcast config change to overlay
+    // Broadcast config change to overlay and map
     if (overlayWindow) overlayWindow.webContents.send('config-changed', JSON.stringify(config));
+    if (mapWindow) mapWindow.webContents.send('config-changed', JSON.stringify(config));
 
     // Re-register hotkey if changed
     if (key === 'hotkey') {
@@ -264,6 +318,22 @@ ipcMain.on('open-settings', () => {
 
 ipcMain.on('close-settings', () => {
     if (settingsWindow) settingsWindow.hide();
+});
+
+ipcMain.on('toggle-map', () => {
+    if (!mapWindow) return;
+    if (mapWindow.isVisible()) {
+        mapWindow.hide();
+    } else {
+        // Just show it where it was
+
+        mapWindow.show();
+        mapWindow.focus();
+    }
+});
+
+ipcMain.on('close-map', () => {
+    if (mapWindow) mapWindow.hide();
 });
 
 ipcMain.on('close-overlay', () => {
