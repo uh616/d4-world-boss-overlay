@@ -324,7 +324,23 @@ async function fetchAPI() {
         }
 
         const boss     = getNext(data.world_boss || data.boss, "boss");
-        const helltide = getNext(data.helltide, "helltide");
+
+        // Helltide lasts 55 minutes — a helltide that started up to 55min ago is still active
+        const helltideRaw = data.helltide;
+        let helltide = null;
+        if (helltideRaw) {
+            const arr = Array.isArray(helltideRaw) ? helltideRaw : [helltideRaw];
+            // Find the most recent helltide that either hasn't started yet, or started within last 55 min
+            const HELLTIDE_DURATION = 55 * 60;
+            const relevant = arr.filter(i => (i.timestamp || 0) > now - HELLTIDE_DURATION);
+            if (relevant.length > 0) {
+                const closest = relevant.reduce((prev, curr) =>
+                    (prev.timestamp < curr.timestamp ? prev : curr)
+                );
+                helltide = { time: closest.timestamp, type: "helltide", name: closest.name || "", zone: closest.zone || "" };
+            }
+        }
+
         const legion   = getNext(data.legion, "legion");
 
         if (overlayWindow) {
