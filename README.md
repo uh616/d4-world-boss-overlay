@@ -9,7 +9,7 @@ Data is pulled from [helltides.com](https://helltides.com).
 [![GitHub release](https://img.shields.io/github/v/release/uh616/d4-world-boss-overlay?style=flat-square&logo=github&color=blue)](https://github.com/uh616/d4-world-boss-overlay/releases/latest)
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=uh616.d4-world-boss-overlay&style=flat-square&color=red)](https://github.com/uh616/d4-world-boss-overlay)
 
-![Diablo 4 Overlay Screenshot](screenshot.png)
+![Diablo 4 Overlay Screenshot](screenshot_v2.0.2.png)
 
 ---
 
