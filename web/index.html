@@ -387,6 +387,26 @@
                     }, 10);
                 }
             });
+        } else {
+            // STANDALONE MODE (OBS / GitHub Pages)
+            document.querySelector('.controls').style.display = 'none'; // hide controls
+            document.body.style.backgroundColor = 'transparent';
+            
+            try {
+                const stored = localStorage.getItem('d4config');
+                if (stored) config = JSON.parse(stored);
+            } catch(e) {}
+            applyConfig();
+
+            async function fetchApi() {
+                try {
+                    const res = await fetch('https://helltides.com/api/schedule');
+                    cachedApiData = await res.json();
+                    renderData();
+                } catch(e) { console.error('Fetch error', e); }
+            }
+            fetchApi();
+            setInterval(fetchApi, 60000); // Update every minute
         }
         
         // Timer tick to update seconds visually every second without hitting API
