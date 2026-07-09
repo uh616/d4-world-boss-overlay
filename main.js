@@ -344,9 +344,13 @@ ipcMain.on('close-map', () => {
 });
 
 ipcMain.on('close-overlay', () => {
-    if (settingsWindow) settingsWindow.destroy();
-    app.quit();
+    // Destroy all windows explicitly so nothing lingers in the task manager
+    try { if (mapWindow) mapWindow.destroy(); } catch(e) {}
+    try { if (settingsWindow) settingsWindow.destroy(); } catch(e) {}
+    try { if (overlayWindow) overlayWindow.destroy(); } catch(e) {}
+    app.exit(0);
 });
+
 
 ipcMain.on('open-support', () => {
     shell.openExternal("https://boosty.to/6i6");
