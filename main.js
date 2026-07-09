@@ -5,7 +5,10 @@ const fs = require('fs');
 // Disable autoplay policy to allow overlay to play sounds without interaction
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+// CONFIG_FILE is set after app is ready so app.getPath('userData') is available.
+// Falls back to __dirname for dev mode (before app.whenReady resolves).
+let CONFIG_FILE = path.join(__dirname, 'config.json');
+
 
 let overlayWindow = null;
 let settingsWindow = null;
@@ -43,9 +46,8 @@ function saveConfig() {
     } catch (e) { console.error("Config save error", e); }
 }
 
-loadConfig();
-
 function createOverlay() {
+
     const display = screen.getPrimaryDisplay();
     const { width } = display.workAreaSize;
 
@@ -186,6 +188,10 @@ function toggleLock() {
 }
 
 app.whenReady().then(() => {
+    // Use userData so the config is writable in the packaged .exe too
+    CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
+    loadConfig();
+
     // Start local server for OBS Browser Source
     const http = require('http');
     http.createServer((req, res) => {
@@ -197,6 +203,7 @@ app.whenReady().then(() => {
     createOverlay();
     createSettings();
     createMapWindow();
+
 
     if (config.hotkey) {
         try {
