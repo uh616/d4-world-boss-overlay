@@ -91,6 +91,8 @@ function createOverlay() {
 
     overlayWindow.webContents.on('did-finish-load', () => {
         overlayWindow.show();
+        // Check for updates after the window is ready to receive IPC
+        setTimeout(checkForUpdates, 3000);
     });
 
     // overlayWindow.webContents.openDevTools({ mode: 'detach' });
@@ -223,8 +225,7 @@ app.whenReady().then(() => {
 
     startWatcher();
 
-    // Check for updates 10 seconds after launch (non-blocking)
-    setTimeout(checkForUpdates, 10000);
+    // Update check is triggered from overlayWindow 'did-finish-load' event
 });
 
 app.on('window-all-closed', () => {
