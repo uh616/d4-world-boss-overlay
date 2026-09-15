@@ -443,12 +443,18 @@ async function fetchAPI() {
 
         const now = Date.now() / 1000;
 
-        // World Boss: nextTime is ISO string of when boss appears
+        // World Boss: startTime = when current boss window opens, nextTime = the one AFTER that
+        // helltides.com counts down to startTime, so we do the same
         let boss = null;
-        if (bossData && bossData.nextTime) {
-            const t = Math.floor(new Date(bossData.nextTime).getTime() / 1000);
-            if (t > now - 30 * 60) { // still relevant if within 30 min past
+        if (bossData && bossData.startTime) {
+            const t = Math.floor(new Date(bossData.startTime).getTime() / 1000);
+            // Show if the boss window hasn't ended yet (boss window lasts ~30 min)
+            if (t > now - 30 * 60) {
                 boss = { time: t, type: 'boss', name: bossData.boss || '', zone: '' };
+            } else if (bossData.nextTime) {
+                // Current boss already passed, show the next one
+                const nt = Math.floor(new Date(bossData.nextTime).getTime() / 1000);
+                boss = { time: nt, type: 'boss', name: bossData.boss || '', zone: '' };
             }
         }
 
