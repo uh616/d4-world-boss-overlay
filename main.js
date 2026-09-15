@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, screen, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -432,7 +432,16 @@ let cachedApiData = null;
 
 async function fetchAPI() {
     try {
-        const response = await fetch(API_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }});
+        // Use Electron's net.fetch (Chromium network stack) to bypass Cloudflare
+        const response = await net.fetch(API_URL, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://helltides.com/'
+            }
+        });
+        if (!response.ok) { console.error('API HTTP error:', response.status); return; }
         const data = await response.json();
 
         const now = Date.now() / 1000;
