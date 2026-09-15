@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, screen, net } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, dialog, shell, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -424,73 +424,67 @@ ipcMain.on('test-sound', () => {
     }
 });
 
-// ─── API Fetch Loop ────────────────────────────────────────────────────────
-
-const API_URL = "https://helltides.com/api/schedule";
+// Firebase RTDB endpoints — publicly readable, no Cloudflare blocking
+const FB_BASE = 'https://helltides-7e530-r1.firebaseio.com';
 
 let cachedApiData = null;
 
 async function fetchAPI() {
     try {
-        // Use Electron's net.fetch (Chromium network stack) to bypass Cloudflare
-        const response = await net.fetch(API_URL, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://helltides.com/'
-            }
-        });
-        if (!response.ok) { console.error('API HTTP error:', response.status); return; }
-        const data = await response.json();
+        const [bossRes, helltideRes, legionRes] = await Promise.all([
+            fetch(`${FB_BASE}/world_boss.json`),
+            fetch(`${FB_BASE}/helltide.json`),
+            fetch(`${FB_BASE}/legion.json`)
+        ]);
+
+        const bossData    = bossRes.ok    ? await bossRes.json()    : null;
+        const helltideData = helltideRes.ok ? await helltideRes.json() : null;
+        const legionData  = legionRes.ok  ? await legionRes.json()  : null;
 
         const now = Date.now() / 1000;
-        function getNext(items, type) {
-            if (!items) return null;
-            if (!Array.isArray(items)) items = [items];
-            const future = items.filter(i => (i.timestamp || i.expectedTime || 0) > now - 10);
-            if (future.length === 0) return null;
-            const closest = future.reduce((prev, curr) =>
-                ((prev.timestamp || prev.expectedTime) < (curr.timestamp || curr.expectedTime) ? prev : curr)
-            );
-            return {
-                time: closest.timestamp || closest.expectedTime,
-                type: type,
-                name: closest.name || "",
-                zone: closest.zone || ""
-            };
-        }
 
-        const boss     = getNext(data.world_boss || data.boss, "boss");
-
-        // Helltide lasts 55 minutes — a helltide that started up to 55min ago is still active
-        const helltideRaw = data.helltide;
-        let helltide = null;
-        if (helltideRaw) {
-            const arr = Array.isArray(helltideRaw) ? helltideRaw : [helltideRaw];
-            // Find the most recent helltide that either hasn't started yet, or started within last 55 min
-            const HELLTIDE_DURATION = 55 * 60;
-            const relevant = arr.filter(i => (i.timestamp || 0) > now - HELLTIDE_DURATION);
-            if (relevant.length > 0) {
-                const closest = relevant.reduce((prev, curr) =>
-                    (prev.timestamp < curr.timestamp ? prev : curr)
-                );
-                helltide = { time: closest.timestamp, type: "helltide", name: closest.name || "", zone: closest.zone || "" };
+        // World Boss: nextTime is ISO string of when boss appears
+        let boss = null;
+        if (bossData && bossData.nextTime) {
+            const t = Math.floor(new Date(bossData.nextTime).getTime() / 1000);
+            if (t > now - 30 * 60) { // still relevant if within 30 min past
+                boss = { time: t, type: 'boss', name: bossData.boss || '', zone: '' };
             }
         }
 
-        const legion   = getNext(data.legion, "legion");
+        // Helltide: endTime tells us when it ends; startTime tells us when it started
+        let helltide = null;
+        if (helltideData && helltideData.startTime) {
+            const startT = Math.floor(new Date(helltideData.startTime).getTime() / 1000);
+            const endT   = helltideData.endTime
+                ? Math.floor(new Date(helltideData.endTime).getTime() / 1000)
+                : startT + 55 * 60;
+            if (endT > now) {
+                // Helltide is active or upcoming — send startTime so overlay can show it
+                helltide = { time: startT, type: 'helltide', name: '', zone: helltideData.zone || '' };
+            }
+        }
+
+        // Legion: nextTime is when the next legion appears
+        let legion = null;
+        if (legionData && legionData.nextTime) {
+            const t = Math.floor(new Date(legionData.nextTime).getTime() / 1000);
+            if (t > now - 30 * 60) {
+                legion = { time: t, type: 'legion', name: '', zone: '' };
+            }
+        }
 
         cachedApiData = { boss, helltide, legion };
 
         if (overlayWindow) {
             overlayWindow.webContents.send('api-update', cachedApiData);
         }
-    } catch (e) { console.error("Fetch API Error:", e); }
+    } catch (e) { console.error('Fetch API Error:', e); }
 }
 
 setInterval(fetchAPI, 5 * 60 * 1000);
 setTimeout(fetchAPI, 2000);
+
 
 // ─── Auto Hide Logic ───────────────────────────────────────────────────────
 let psWatcher = null;
