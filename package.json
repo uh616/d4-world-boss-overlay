@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
-    "build": "electron-builder --win --x64"
+    "build": "electron-builder --win --x64 --publish never",
+    "release": "node scripts/release.js"
   },
   "build": {
     "appId": "com.uh616.d4-world-boss-overlay",
